@@ -21,6 +21,54 @@
 using namespace boost;
 using namespace scan;
 
+template<typename T>
+struct multiset_comparator {
+    bool operator()(const pair<size_t, T> &a, const pair<size_t, T> &b) {
+        return a.second > b.second;
+    }
+};
+
+void split_string_by(const string &str, char delim, vector<string> &elems) {
+    elems.clear();
+    string item;
+    for (char ch : str) {
+        if (ch == delim) {
+            if (!item.empty()) {
+                elems.push_back(item);
+            }
+            item.clear();
+        } else {
+            item += ch;
+        }
+    }
+    if (!item.empty()) {
+        elems.push_back(item);
+    }
+}
+void split_word_by(const wstring &str, wchar_t delim, vector<wstring> &elems) {
+    elems.clear();
+    wstring item;
+    for (wchar_t ch : str) {
+        if (ch == delim) {
+            if (!item.empty()) {
+                elems.push_back(item);
+            }
+            item.clear();
+        } else {
+            item += ch;
+        }
+    }
+    if (!item.empty()) {
+        elems.push_back(item);
+    }
+}
+
+bool ends_with(const std::string& str, const std::string& suffix) {
+    size_t len1 = str.size();
+    size_t len2 = suffix.size();
+    return len1 >= len2 && str.compare(len1 - len2, len2, suffix) == 0;
+}
+
 class SCANTrainer {
 public:
     SCAN *_scan;
@@ -64,24 +112,48 @@ public:
 
         _logistic_Phi = new double*[_scan->_n_t];
         _logistic_Psi = new double**[_scan->_n_t];
+        _probs = new double[_scan->_n_k];
 
         for (int t=0; t<_scan->_n_t; ++t) {
             _logistic_Phi[t] = new double[_scan->_n_k];
-            for (int k=0; k<_scan->_n_k; ++k) {
-                _scan->logisitc_transformation(t, _logistic_Phi[t]);
-            }
+            _scan->logisitc_transformation(t, _logistic_Phi[t]);
         }
         for (int t=0; t<_scan->_n_t; ++t) {
             _logistic_Psi[t] = new double*[_scan->_n_k];
             for (int k=0; k<_scan->_n_k; ++k) {
                 _logistic_Psi[t][k] = new double[_scan->_vocab_size];
-                for (int v=0; v<_scan->_vocab_size; ++v) {
-                    _scan->logisitc_transformation(t, k, _logistic_Psi[t][k]);
-                }
+                _scan->logisitc_transformation(t, k, _logistic_Psi[t][k]);
             }
         }
         for (int k=0; k<_scan->_n_k; ++k) {
-            _probs[k] = 0;
+            _probs[k] = 0.0;
+        }
+    }
+    int load_document(string filepath) {
+        wifstream ifs(filepath.c_str());
+        assert(ifs.fail() == false);
+        int doc_id = _dataset.size();
+        _dataset.push_back(vector<size_t>());
+        wstring sentence;
+        while (getline(ifs, sentence) && !ifs.eof()) {
+            vector<wstring> words;
+            split_word_by(sentence, L' ', words);
+            add_document(words, doc_id);
+        }
+        vector<string> tar_year;
+        split_string_by(filepath, '_', tar_year);
+        vector<string> year;
+        split_string_by(tar_year[1], '.', year);
+        _years.push_back(stoi(year[0]));
+        return doc_id;
+    }
+    void add_document(vector<wstring> &words, int doc_id) {
+        if (words.size() == 0) return;
+        vector<size_t> &doc = _dataset[doc_id];
+        for (auto word : words) {
+            if (word.size() == 0) continue;
+            size_t word_id = _vocab->add_string(word);
+            doc.push_back(word_id);
         }
     }
     void sample_z(int t) {
@@ -149,6 +221,7 @@ public:
                     ru = min(ru, bound);
                 }
             }
+            // meet to standard normal's mean
             lu -= mean[k];
             ru -= mean[k];
             double sampled = mean[k] + _scan->generate_noise_for_phi_from_truncated_normal_distribution(lu, ru) * sqrt(1.0 / _scan->_kappa_phi);
@@ -198,6 +271,7 @@ public:
                         ru = min(ru, bound);
                     }
                 }
+                // meet to standard normal's mean
                 lu -= mean[k];
                 ru -= mean[k];
                 double sampled = mean[v] + _scan->generate_noise_for_psi_from_truncated_normal_distribution(lu, ru) * sqrt(1.0 / _scan->_kappa_psi);
@@ -246,8 +320,58 @@ public:
             }
         }
     }
+    double compute_log_likelihood() {
+        _update_logistic_Psi();
+        double log_pw = 0;
+        for (int t=0; t<_scan->_n_t; ++t) {
+            for (int n=0; n<_scan->_num_docs; ++n) {
+                if (_years[n] != t) continue;
+                int assigned_sense = _scan->_Z[n];
+                for (int i=0; i<_scan->_context_window_width; ++i) {
+                    size_t v = _dataset[n][i];
+                    log_pw += log(_logistic_Psi[t][assigned_sense][v]);
+                }
+            }
+        }
+        return log_pw;
+    }
+    void iteration(int iter=1000) {
+        for (int i=0; i<iter; ++i) {
+            for (int t=0; t<_scan->_n_t; ++t) {
+                ++_current_iter;
+                sample_z(t);
+                sample_phi(t);
+                sample_psi(t);
+                if (iter % 50 == 0) {
+                    sample_kappa();
+                }
+            }
+            double log_pw = compute_log_likelihood();
+            cout << "iter: " << _current_iter << "log_likelihood: " << log_pw << endl;
+        }
+    }
 };
 
+void read_data(string data_path, SCANTrainer &trainer) {
+    const char* path = data_path.c_str();
+    DIR *dp;
+    dp = opendir(path);
+    assert (dp != NULL);
+    dirent* entry = readdir(dp);
+    while (entry != NULL){
+        const char *cstr = entry->d_name;
+        string file_path = string(cstr);
+        if (ends_with(file_path, ".txt")) {
+            // std::cout << "loading " << file_path << std::endl;
+            int doc_id = trainer.load_document(data_path + file_path);
+        }
+        entry = readdir(dp);
+    }
+}
+
 int main() {
+    SCANTrainer trainer;
+    read_data("./COHA/extracted/", trainer);
+    trainer.prepare();
     return 0;
 }
