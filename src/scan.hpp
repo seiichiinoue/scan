@@ -25,9 +25,6 @@ namespace scan {
         
         int _vocab_size;
         int _num_docs;
-        
-        int** _snippets;
-        int* _year_label;
 
         // parameters
         double _kappa_phi;
@@ -52,9 +49,6 @@ namespace scan {
             _vocab_size = 0;
             _num_docs = 0;
 
-            _snippets = NULL;
-            _year_label = NULL;
-
             _kappa_phi = 0.0;
             _Ekappa_phi = 0.0;
             _kappa_psi = 0.0;
@@ -73,23 +67,12 @@ namespace scan {
             _vocab_size = vocab_size;
             _num_docs = num_docs;
 
-            _snippets = new int*[num_docs];
-            _year_label = new int[num_docs];
             _Z = new int[num_docs];
             _Phi = new double*[_n_t];
             _Psi = new double**[_n_t];
             _EPhi = new double*[_n_t];
             _EPsi = new double**[_n_t];
 
-            for (int n=0; n<_num_docs; ++n) {
-                _snippets[n] = new int[_context_window_width];
-                for (int i=0; i<_context_window_width; ++i) {
-                    _snippets[n][i] = 0;
-                }
-            }
-            for (int n=0; n<_num_docs; ++n) {
-                _year_label[n] = 0;
-            }
             for (int n=0; n<_num_docs; ++n) {
                 _Z[n] = sampler::uniform_int(0, _n_k);
             }
@@ -113,7 +96,6 @@ namespace scan {
                     }
                 }
             }
-            
         }
         double generate_noise_for_phi_from_normal_distribution() {
             return _normal_distribution_for_phi(sampler::minstd);
