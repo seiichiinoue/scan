@@ -304,9 +304,7 @@ public:
     void _update_logistic_Phi(bool evalue=false) {
         for (int t=0; t<_scan->_n_t; ++t) {
             _logistic_Phi[t] = new double[_scan->_n_k];
-            for (int k=0; k<_scan->_n_k; ++k) {
-                _scan->logisitc_transformation(t, _logistic_Phi[t]);
-            }
+            _scan->logisitc_transformation(t, _logistic_Phi[t], evalue);
         }
     }
     void _update_logistic_Psi(bool evalue=false) {
@@ -314,9 +312,7 @@ public:
             _logistic_Psi[t] = new double*[_scan->_n_k];
             for (int k=0; k<_scan->_n_k; ++k) {
                 _logistic_Psi[t][k] = new double[_scan->_vocab_size];
-                for (int v=0; v<_scan->_vocab_size; ++v) {
-                    _scan->logisitc_transformation(t, k, _logistic_Psi[t][k]);
-                }
+                _scan->logisitc_transformation(t, k, _logistic_Psi[t][k], evalue);
             }
         }
     }
@@ -335,7 +331,7 @@ public:
         }
         return log_pw;
     }
-    void iteration(int iter=1000) {
+    void train(int iter=1000) {
         for (int i=0; i<iter; ++i) {
             for (int t=0; t<_scan->_n_t; ++t) {
                 ++_current_iter;
@@ -373,5 +369,8 @@ int main() {
     SCANTrainer trainer;
     read_data("./COHA/extracted/", trainer);
     trainer.prepare();
+    cout << "num docs: " << trainer._scan->_num_docs << endl;
+    cout << "vocab size: " << trainer._vocab->num_words() << endl;
+    trainer.train();
     return 0;
 }
