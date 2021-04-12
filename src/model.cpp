@@ -144,7 +144,7 @@ public:
         split_string_by(filepath, '_', tar_year);
         vector<string> year;
         split_string_by(tar_year[1], '.', year);
-        _years.push_back(stoi(year[0]));
+        _years.push_back((stoi(year[0]) - 1810) / 20);
         return doc_id;
     }
     void add_document(vector<wstring> &words, int doc_id) {
@@ -166,19 +166,17 @@ public:
             // calculation for $\phi^t_k$
             double* probs_n = _probs;
             for (int k=0; k<_scan->_n_k; ++k) {
-                probs_n[k] = logistic_phi_t[k];
+                probs_n[k] = log(logistic_phi_t[k]);
             }
             // calculation for $\prod \psi^{t, k}_wi$
             for (int k=0; k<_scan->_n_k; ++k) {
                 for (int i=0; i<_scan->_context_window_width; ++i) {
                     size_t word_id = _dataset[n][i];
-                    probs_n[k] *= logistic_psi_t[k][word_id];
+                    probs_n[k] += log(logistic_psi_t[k][word_id]);
                 }
             }
-            // calculation of constants
-            double constants = accumulate(probs_n, probs_n+_scan->_n_k, 0);
             for (int k=0; k<_scan->_n_k; ++k) {
-                probs_n[k] /= constants;
+                probs_n[k] = exp(probs_n[k]);
             }
             // random sampling from multinomial distribution and assign new sense
             int sense = sampler::multinomial((size_t)_scan->_n_k, probs_n);
@@ -224,7 +222,9 @@ public:
             // meet to standard normal's mean
             lu -= mean[k];
             ru -= mean[k];
-            double sampled = mean[k] + _scan->generate_noise_for_phi_from_truncated_normal_distribution(lu, ru) * sqrt(1.0 / _scan->_kappa_phi);
+            double noise = _scan->generate_noise_for_phi_from_truncated_normal_distribution(lu, ru);
+            double sampled = mean[k] + noise * sqrt(1.0 / _scan->_kappa_phi);
+            assert(sampled < 1e15);
             _scan->_Phi[t][k] = sampled;
             if (_current_iter > _burn_in_period) {
                 _scan->_EPhi[t][k] *= (_current_iter - _burn_in_period - 1);
@@ -274,7 +274,9 @@ public:
                 // meet to standard normal's mean
                 lu -= mean[k];
                 ru -= mean[k];
-                double sampled = mean[v] + _scan->generate_noise_for_psi_from_truncated_normal_distribution(lu, ru) * sqrt(1.0 / _scan->_kappa_psi);
+                double noise = _scan->generate_noise_for_psi_from_truncated_normal_distribution(lu, ru);
+                double sampled = mean[v] + noise * sqrt(1.0 / _scan->_kappa_psi);
+                assert(sampled < 1e15);
                 _scan->_Psi[t][k][v] = sampled;
                 if (_current_iter > _burn_in_period) {
                     _scan->_EPsi[t][k][v] *= (_current_iter - _burn_in_period - 1);
@@ -317,7 +319,7 @@ public:
         }
     }
     double compute_log_likelihood() {
-        _update_logistic_Psi();
+        _update_logistic_Psi(true);
         double log_pw = 0;
         for (int t=0; t<_scan->_n_t; ++t) {
             for (int n=0; n<_scan->_num_docs; ++n) {
@@ -333,8 +335,8 @@ public:
     }
     void train(int iter=1000) {
         for (int i=0; i<iter; ++i) {
+            ++_current_iter;
             for (int t=0; t<_scan->_n_t; ++t) {
-                ++_current_iter;
                 sample_z(t);
                 sample_phi(t);
                 sample_psi(t);
@@ -343,7 +345,7 @@ public:
                 }
             }
             double log_pw = compute_log_likelihood();
-            cout << "iter: " << _current_iter << "log_likelihood: " << log_pw << endl;
+            cout << "iter: " << _current_iter << "\tlog_likelihood: " << log_pw << endl;
         }
     }
 };
@@ -367,10 +369,10 @@ void read_data(string data_path, SCANTrainer &trainer) {
 
 int main() {
     SCANTrainer trainer;
-    read_data("./COHA/extracted/", trainer);
+    read_data("./COHA/small/", trainer);
     trainer.prepare();
     cout << "num docs: " << trainer._scan->_num_docs << endl;
     cout << "vocab size: " << trainer._vocab->num_words() << endl;
-    trainer.train();
+    trainer.train(100);
     return 0;
 }
