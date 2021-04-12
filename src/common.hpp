@@ -3,7 +3,7 @@
 #include <cmath>
 #include "fmath.hpp"
 #define NUM_SENSE 8
-#define NUM_TIME 20
+#define NUM_TIME 10
 #define KAPPA_PHI 4.0
 #define KAPPA_PSI 10.0
 #define GAMMA_A 7.0
