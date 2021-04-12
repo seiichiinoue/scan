@@ -175,12 +175,32 @@ public:
                     probs_n[k] += log(logistic_psi_t[k][word_id]);
                 }
             }
+            // calculation of constants
+            double constants = 0.0;
+            for (int k=0; k<_scan->_n_k; ++k) {
+                constants = _logsumexp(constants, probs_n[k], (bool)(k==0));
+            }
+            for (int k=0; k<_scan->_n_k; ++k) {
+                probs_n[k] -= constants;
+            }
             for (int k=0; k<_scan->_n_k; ++k) {
                 probs_n[k] = exp(probs_n[k]);
             }
             // random sampling from multinomial distribution and assign new sense
             int sense = sampler::multinomial((size_t)_scan->_n_k, probs_n);
             _scan->_Z[n] = sense;
+        }
+    }
+    double _logsumexp(double x, double y, bool flg) {
+        if (flg) return y; // init mode
+        // if (x == y) return x + 0.69314718055; // log(2)
+        if (x == y) return x + std::log(2);
+        double vmin = std::min(x, y);
+        double vmax = std::max(x, y);
+        if (vmax > vmin + 50) {
+            return vmax;
+        } else {
+            return vmax + std::log(std::exp(vmin - vmax) + 1.0);
         }
     }
     void sample_phi(int t) {
