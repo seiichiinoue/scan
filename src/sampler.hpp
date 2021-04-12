@@ -48,7 +48,7 @@ namespace scan {
 
             unsigned int* n = new unsigned int[k];
             const double* p_const = const_cast<const double*>(p); 
-            gsl_ran_multinomial(_r, k, 1, p, n);
+            gsl_ran_multinomial(_r, k, 1, p_const, n);
             int ret = k-1;
             for (int i=0; i<k; ++i) {
                 if (n[i]) ret = i;
