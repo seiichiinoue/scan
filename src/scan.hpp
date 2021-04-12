@@ -49,9 +49,9 @@ namespace scan {
             _vocab_size = 0;
             _num_docs = 0;
 
-            _kappa_phi = 0.0;
+            _kappa_phi = KAPPA_PHI;
+            _kappa_psi = KAPPA_PSI;
             _Ekappa_phi = 0.0;
-            _kappa_psi = 0.0;
             _Z = NULL;
             _Phi = NULL;
             _Psi = NULL;
@@ -74,7 +74,7 @@ namespace scan {
             _EPsi = new double**[_n_t];
 
             for (int n=0; n<_num_docs; ++n) {
-                _Z[n] = sampler::uniform_int(0, _n_k);
+                _Z[n] = sampler::uniform_int(0, _n_k-1);
             }
             for (int t=0; t<_n_t; ++t) {
                 _Phi[t] = new double[_n_k];
