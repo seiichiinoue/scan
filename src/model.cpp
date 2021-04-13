@@ -184,6 +184,9 @@ public:
             for (int k=0; k<_scan->_n_k; ++k) {
                 for (int i=0; i<_scan->_context_window_width; ++i) {
                     size_t word_id = _dataset[n][i];
+                    if (_word_frequency[word_id] < _ignore_word_count) {
+                        continue;
+                    }
                     probs_n[k] += log(logistic_psi_t[k][word_id]);
                 }
             }
@@ -285,6 +288,9 @@ public:
                 }
             }
             for (int v=0; v<_scan->_vocab_size; ++v) {
+                if (_word_frequency[v] < _ignore_word_count) {
+                    continue;
+                }
                 double lu = -1e15, ru = 1e15;
                 double constants = 0;
                 for (int i=0; i<_scan->_vocab_size; ++i) {
@@ -358,12 +364,24 @@ public:
                 if (_years[n] != t) continue;
                 int assigned_sense = _scan->_Z[n];
                 for (int i=0; i<_scan->_context_window_width; ++i) {
-                    size_t v = _dataset[n][i];
-                    log_pw += log(_logistic_Psi[t][assigned_sense][v]);
+                    size_t word_id = _dataset[n][i];
+                    if (_word_frequency[word_id] < _ignore_word_count) {
+                        continue;
+                    }
+                    log_pw += log(_logistic_Psi[t][assigned_sense][word_id]);
                 }
             }
         }
         return log_pw;
+    }
+    int get_sum_word_frequency() {
+        int sum = 0;
+        for (int v=0; v<_word_frequency.size(); ++v) {
+            if (_word_frequency[v] >= _ignore_word_count) {
+                sum += _word_frequency[v];
+            }
+        }
+        return sum;
     }
     void train(int iter=1000, string save_path ="./bin/scan.bin") {
         for (int i=0; i<iter; ++i) {
