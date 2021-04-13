@@ -77,11 +77,17 @@ public:
     vector<vector<size_t>> _validation_dataset;
     vector<int> _years;
     vector<int> _years_validation;
+    vector<string> _target_words;
+    vector<string> _target_words_validation;
+    unordered_map<size_t, int> _word_frequency;
+    unordered_map<size_t, int> _word_frequency_validation;
+
     double** _logistic_Phi;
     double*** _logistic_Psi;
     double* _probs;
 
     int _burn_in_period;
+    int _ignore_word_count;
     int _current_iter;
     
     SCANTrainer() {
@@ -99,6 +105,7 @@ public:
         _probs = NULL;
 
         _burn_in_period = BURN_IN_PERIOD;
+        _ignore_word_count = IGNORE_WORD_COUNT;
         _current_iter = 0;
     }
     ~SCANTrainer() {
@@ -129,23 +136,27 @@ public:
             _probs[k] = 0.0;
         }
     }
-    int load_document(string filepath) {
+    void load_document(string filepath) {
         wifstream ifs(filepath.c_str());
         assert(ifs.fail() == false);
-        int doc_id = _dataset.size();
-        _dataset.push_back(vector<size_t>());
         wstring sentence;
+
+        vector<string> dir_tar_year_ex;
+        split_string_by(filepath, '/', dir_tar_year_ex);
+        vector<string> tar_year_ex;
+        split_string_by(dir_tar_year_ex.back(), '_', tar_year_ex);
+        vector<string> year_ex;
+        split_string_by(tar_year_ex.back(), '.', year_ex);
+
         while (getline(ifs, sentence) && !ifs.eof()) {
+            int doc_id = _dataset.size();
+            _dataset.push_back(vector<size_t>());
             vector<wstring> words;
             split_word_by(sentence, L' ', words);
             add_document(words, doc_id);
+            _years.push_back((stoi(year_ex.front()) - 1810) / 20);
+            _target_words.push_back(tar_year_ex.front());
         }
-        vector<string> tar_year;
-        split_string_by(filepath, '_', tar_year);
-        vector<string> year;
-        split_string_by(tar_year[1], '.', year);
-        _years.push_back((stoi(year[0]) - 1810) / 20);
-        return doc_id;
     }
     void add_document(vector<wstring> &words, int doc_id) {
         if (words.size() == 0) return;
@@ -154,6 +165,7 @@ public:
             if (word.size() == 0) continue;
             size_t word_id = _vocab->add_string(word);
             doc.push_back(word_id);
+            _word_frequency[word_id] += 1;
         }
     }
     void sample_z(int t) {
@@ -353,7 +365,7 @@ public:
         }
         return log_pw;
     }
-    void train(int iter=1000) {
+    void train(int iter=1000, string save_path ="./bin/scan.bin") {
         for (int i=0; i<iter; ++i) {
             ++_current_iter;
             for (int t=0; t<_scan->_n_t; ++t) {
@@ -366,7 +378,38 @@ public:
             }
             double log_pw = compute_log_likelihood();
             cout << "iter: " << _current_iter << "\tlog_likelihood: " << log_pw << endl;
+            save(save_path);
         }
+    }
+    void save(string filename) {
+        std::ofstream ofs(filename);
+        boost::archive::binary_oarchive oarchive(ofs);
+        oarchive << *_vocab;
+        oarchive << *_scan;
+        oarchive << _word_frequency;
+        oarchive << _dataset;
+        oarchive << _years;
+        oarchive << _target_words;
+        oarchive << _burn_in_period;
+        oarchive << _ignore_word_count;
+    }
+    bool load(string filename) {
+        std::ifstream ifs(filename);
+        if (ifs.good()) {
+            _vocab = new Vocab();
+            _scan = new SCAN();
+            boost::archive::binary_iarchive iarchive(ifs);
+            iarchive >> *_vocab;
+            iarchive >> *_scan;
+            iarchive >> _word_frequency;
+            iarchive >> _dataset;
+            iarchive >> _years;
+            iarchive >> _target_words;
+            iarchive >> _burn_in_period;
+            iarchive >> _ignore_word_count;
+            return true;
+        }
+        return false;
     }
 };
 
@@ -381,7 +424,7 @@ void read_data(string data_path, SCANTrainer &trainer) {
         string file_path = string(cstr);
         if (ends_with(file_path, ".txt")) {
             // std::cout << "loading " << file_path << std::endl;
-            int doc_id = trainer.load_document(data_path + file_path);
+            trainer.load_document(data_path + file_path);
         }
         entry = readdir(dp);
     }
@@ -393,6 +436,6 @@ int main() {
     trainer.prepare();
     cout << "num docs: " << trainer._scan->_num_docs << endl;
     cout << "vocab size: " << trainer._vocab->num_words() << endl;
-    trainer.train(100);
+    trainer.train();
     return 0;
 }

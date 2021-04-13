@@ -150,5 +150,119 @@ namespace scan {
                 vec[v] /= u;
             }
         }
+        template<class Archive>
+        void serialize(Archive &archive, unsigned int version) {
+            boost::serialization::split_free(archive, *this, version);
+        }
+        void save(string filename) {
+            std::ofstream ofs(filename);
+            boost::archive::binary_oarchive oarchive(ofs);
+            oarchive << *this;
+        }
+        bool load(string filename) {
+            std::ifstream ifs(filename);
+            if (ifs.good()) {
+                boost::archive::binary_iarchive iarchive(ifs);
+                iarchive >> *this;
+                return true;
+            }
+            return false;
+        }
     };
 }
+// save model
+namespace boost { namespace serialization {
+template<class Archive>
+    void save(Archive &archive, const scan::SCAN &scan, unsigned int version) {
+        archive & scan._n_k;
+        archive & scan._n_t;
+        archive & scan._gamma_a;
+        archive & scan._gamma_b;
+        archive & scan._context_window_width;
+        archive & scan._vocab_size;
+        archive & scan._num_docs;
+        archive & scan._kappa_phi;
+        archive & scan._kappa_psi;
+        archive & scan._Ekappa_phi;
+        for (int n=0; n<scan._num_docs; ++n) {
+            archive & scan._Z[n];
+        }
+        for (int t=0; t<scan._n_t; ++t) {
+            for (int k=0; k<scan._n_k; ++k) {
+                archive & scan._Phi[t][k];
+                archive & scan._EPhi[t][k];
+            }
+        }
+        for (int t=0; t<scan._n_t; ++t) {
+            for (int k=0; k<scan._n_k; ++k) {
+                for (int v=0; v<scan._vocab_size; ++v) {
+                    archive & scan._Psi[t][k][v];
+                    archive & scan._EPsi[t][k][v];
+                }
+            }
+        }
+    }
+template<class Archive>
+    void load(Archive &archive, scan::SCAN &scan, unsigned int version) {
+        archive & scan._n_k;
+        archive & scan._n_t;
+        archive & scan._gamma_a;
+        archive & scan._gamma_b;
+        archive & scan._context_window_width;
+        archive & scan._vocab_size;
+        archive & scan._num_docs;
+        archive & scan._kappa_phi;
+        archive & scan._kappa_psi;
+        archive & scan._Ekappa_phi;
+        if (scan._Z == NULL) {
+            scan._Z = new int[scan._num_docs];
+        }
+        if (scan._Phi == NULL) {
+            scan._Phi = new double*[scan._n_t];
+            for (int t=0; t<scan._n_t; ++t) {
+                scan._Phi[t] = new double[scan._n_k];
+            }
+        }
+        if (scan._EPhi == NULL) {
+            scan._EPhi = new double*[scan._n_t];
+            for (int t=0; t<scan._n_t; ++t) {
+                scan._EPhi[t] = new double[scan._n_k];
+            }
+        }
+        if (scan._Psi == NULL) {
+            scan._Psi = new double**[scan._n_t];
+            for (int t=0; t<scan._n_t; ++t) {
+                scan._Psi[t] = new double*[scan._n_k];
+                for (int k=0; k<scan._n_k; ++k) {
+                    scan._Psi[t][k] = new double[scan._vocab_size];
+                }
+            }
+        }
+        if (scan._EPsi == NULL) {
+            scan._EPsi = new double**[scan._n_t];
+            for (int t=0; t<scan._n_t; ++t) {
+                scan._EPsi[t] = new double*[scan._n_k];
+                for (int k=0; k<scan._n_k; ++k) {
+                    scan._EPsi[t][k] = new double[scan._vocab_size];
+                }
+            }
+        }
+        for (int n=0; n<scan._num_docs; ++n) {
+            archive & scan._Z[n];
+        }
+        for (int t=0; t<scan._n_t; ++t) {
+            for (int k=0; k<scan._n_k; ++k) {
+                archive & scan._Phi[t][k];
+                archive & scan._EPhi[t][k];
+            }
+        }
+        for (int t=0; t<scan._n_t; ++t) {
+            for (int k=0; k<scan._n_k; ++k) {
+                for (int v=0; v<scan._vocab_size; ++v) {
+                    archive & scan._Psi[t][k][v];
+                    archive & scan._EPsi[t][k][v];
+                }
+            }
+        }
+    }
+}}  // namespace boost::serialization
