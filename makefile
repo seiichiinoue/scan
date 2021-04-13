@@ -13,6 +13,8 @@ LDFLAGS = `python3-config --includes` `python3-config --ldflags`
 scan:
 	$(CC) -O3 $(STD) -o scan src/model.cpp $(BOOST) $(INCLUDE) $(FMATH) $(GFLAGS) $(GSL)
 
+test:
+	$(CC) -O3 $(STD) -o test src/model.cpp $(BOOST) $(INCLUDE) $(FMATH) $(GFLAGS) $(GSL)
 clean:
 	rm -f scan
 
