@@ -168,6 +168,51 @@ public:
             _word_frequency[word_id] += 1;
         }
     }
+    void set_num_sense(int n_k) {
+        _scan->_n_k = n_k;
+    }
+    void set_num_time(int n_t) {
+        _scan->_n_t = n_t;
+    }
+    void set_kappa_phi(double kappa_phi) {
+        _scan->_kappa_phi = kappa_phi;
+    }
+    void set_kappa_psi(double kappa_psi) {
+        _scan->_kappa_psi = kappa_psi;
+    }
+    void set_gamma_a(double gamma_a) {
+        _scan->_gamma_a = gamma_a;
+    }
+    void set_gamma_b(double gamma_b) {
+        _scan->_gamma_b = gamma_b;
+    }
+    void set_context_window_width(int context_window_width) {
+        _scan->_context_window_width = context_window_width;
+    }
+    void set_burn_in_period(int burn_in_period) {
+        _burn_in_period = burn_in_period;
+    }
+    void set_ignore_word_count(int ignore_word_count) {
+        _ignore_word_count = ignore_word_count;
+    }
+    int get_sum_word_frequency() {
+        int sum = 0;
+        for (int v=0; v<_word_frequency.size(); ++v) {
+            if (_word_frequency[v] >= _ignore_word_count) {
+                sum += _word_frequency[v];
+            }
+        }
+        return sum;
+    }
+    int get_ignore_word_count() {
+        int cnt = 0;
+        for (int v=0; v<_word_frequency.size(); ++v) {
+            if (_word_frequency[v] < _ignore_word_count) {
+                cnt++;
+            }
+        }
+        return cnt;
+    }
     void sample_z(int t) {
         _update_logistic_Phi(true);
         _update_logistic_Psi(true);
@@ -374,15 +419,6 @@ public:
         }
         return log_pw;
     }
-    int get_sum_word_frequency() {
-        int sum = 0;
-        for (int v=0; v<_word_frequency.size(); ++v) {
-            if (_word_frequency[v] >= _ignore_word_count) {
-                sum += _word_frequency[v];
-            }
-        }
-        return sum;
-    }
     void train(int iter=1000, string save_path ="./bin/scan.bin") {
         for (int i=0; i<iter; ++i) {
             ++_current_iter;
@@ -447,13 +483,44 @@ void read_data(string data_path, SCANTrainer &trainer) {
         entry = readdir(dp);
     }
 }
+// hyper parameters flags
+DEFINE_int32(num_sense, 8, "number of sense");
+DEFINE_int32(num_time, 10, "number of time interval");
+DEFINE_double(kappa_phi, 4.0, "initial value of kappa_phi");
+DEFINE_double(kappa_psi, 10.0, "initial value of kappa_psi (fixed)");
+DEFINE_double(gamma_a, 7.0, "hyperparameter of gamma prior");
+DEFINE_double(gamma_b, 3.0, "hyperparameter of gamma prior");
+DEFINE_int32(context_window_width, 10, "context window width");
+DEFINE_int32(num_iteration, 1000, "number of iteration");
+DEFINE_int32(burn_in_period, 150, "burn in period");
+DEFINE_int32(ignore_word_count, 3, "threshold of low-frequency words");
+DEFINE_string(data_path, "./COHA/corpus/", "path to dataset for training");
+DEFINE_string(validation_data_path, "./COHA/corpus", "path to dataset for validation");
+DEFINE_string(save_path, "./bin/scan.model", "path to saving model");
 
-int main() {
+int main(int argc, char *argv[]) {
+    google::InitGoogleLogging(*argv);
+    google::ParseCommandLineFlags(&argc, &argv, true);
     SCANTrainer trainer;
-    read_data("./COHA/small/", trainer);
+    // set hyper parameter
+    trainer.set_num_sense(FLAGS_num_sense);
+    trainer.set_num_time(FLAGS_num_time);
+    trainer.set_kappa_phi(FLAGS_kappa_phi);
+    trainer.set_kappa_psi(FLAGS_kappa_psi);
+    trainer.set_gamma_a(FLAGS_gamma_a);
+    trainer.set_gamma_b(FLAGS_gamma_b);
+    trainer.set_context_window_width(FLAGS_context_window_width);
+    trainer.set_burn_in_period(FLAGS_burn_in_period);
+    trainer.set_ignore_word_count(FLAGS_ignore_word_count);
+    // read dataset
+    read_data(FLAGS_data_path, trainer);
+    // prepare model
     trainer.prepare();
-    cout << "num docs: " << trainer._scan->_num_docs << endl;
-    cout << "vocab size: " << trainer._vocab->num_words() << endl;
-    trainer.train();
+    // logging summary
+    cout << "num of docs: " << trainer._scan->_num_docs << endl;
+    cout << "sum of word freq: " << trainer.get_sum_word_frequency() << endl;
+    cout << "vocab size: " << trainer._vocab->num_words() - trainer.get_ignore_word_count() << endl;
+    // tarining
+    trainer.train(FLAGS_num_iteration, FLAGS_save_path);
     return 0;
 }
