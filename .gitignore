@@ -1,5 +1,9 @@
 # dataset
 COHA/
-# work dir
+# binary
+bin/
+scan
+# work files
 .work/
 .idea/
+result.log
