@@ -3,7 +3,8 @@ COHA/
 # binary
 bin/
 scan
+test
 # work files
 .work/
 .idea/
-result.log
+*.log
