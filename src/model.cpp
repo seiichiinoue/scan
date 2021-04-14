@@ -277,30 +277,28 @@ public:
             }
         }
         for (int k=0; k<_scan->_n_k; ++k) {
-            double lu = -1e15, ru = 1e15;
             double constants = 0;
             for (int i=0; i<_scan->_n_k; ++i) {
                 constants += exp(_scan->_Phi[t][i]) * (double)(i != k);
             }
+            int cnt = 0, cnt_else = 0;
             for (int n=0; n<_scan->_num_docs; ++n) {
                 if (_times[n] != t) continue;
-                double u_n, bound;
-                if (_scan->_Z[n] == k) {
-                    u_n = sampler::uniform(0, mean[k]);
-                    bound = log(constants) + log(u_n) - log(1 - u_n);
-                    lu = max(lu, bound);
-                } else {
-                    u_n = sampler::uniform(mean[k], 1);
-                    bound = log(constants) + log(u_n) - log(1 - u_n);
-                    ru = min(ru, bound);
-                }
+                if (_scan->_Z[n] == k) cnt++;
+                else cnt_else++;
             }
-            // meet to standard normal's mean
-            lu -= mean[k];
-            ru -= mean[k];
+            // random sampling of maximum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(0, mean[k])$ 
+            double lu = std::pow(sampler::uniform(0, 1), 1.0/(double)cnt) * mean[k];
+            lu = log(constants) + log(lu) - log(1 - lu);
+            // random sampling of minimum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(mean[k], 1)$
+            double ru = (1.0 - mean[k]) * (1.0 - std::pow(sampler::uniform(0, 1), 1.0/(double)cnt_else)) + mean[k];
+            ru = log(constants) + log(ru) - log(1 - ru);
+            // scaling probabilistic variable following logistic distribution to standard normal
+            lu = (lu - mean[k]) / (PI * LVAR);
+            ru = (ru - mean[k]) / (PI * LVAR);
+            assert(lu < ru);
             double noise = _scan->generate_noise_for_phi_from_truncated_normal_distribution(lu, ru);
             double sampled = mean[k] + noise * sqrt(1.0 / _scan->_kappa_phi);
-            assert(sampled < 1e15);
             _scan->_Phi[t][k] = sampled;
             if (_current_iter > _burn_in_period) {
                 _scan->_EPhi[t][k] *= (_current_iter - _burn_in_period - 1);
@@ -333,43 +331,24 @@ public:
                 if (_word_frequency[v] < _ignore_word_count) {
                     continue;
                 }
-                double lu = -1e15, ru = 1e15;
                 double constants = 0;
                 for (int i=0; i<_scan->_vocab_size; ++i) {
                     constants += exp(_scan->_Psi[t][k][i]) * (double)(i != v);
                 }
-                // for (int n=0; n<_scan->_num_docs; ++n) {
-                //     if (_scan->_Z[n] != k || _times[n] != t) continue;
-                //     double u_n, bound;
-                //     if (_word_in_document(v, n)) {
-                //         u_n = sampler::uniform(0, mean[v]);
-                //         bound = log(constants) + log(u_n) - log(1 - u_n);
-                //         lu = max(lu, bound);
-                //     } else {
-                //         u_n = sampler::uniform(mean[v], 1);
-                //         bound = log(constants) + log(u_n) - log(1 - u_n);
-                //         ru = min(ru, bound);
-                //     }
-                // }
-                double u_n, bound;
-                int word_count = _word_frequency[v];
-                for (int i=0; i<word_count; ++i) {
-                    u_n = sampler::uniform(0, mean[v]);
-                    bound = log(constants) + log(u_n) - log(1 - u_n);
-                    lu = max(lu, bound);
-                }
-                word_count = get_sum_word_frequency() - _word_frequency[v];
-                for (int i=0; i<word_count; ++i) {
-                    u_n = sampler::uniform(mean[v], 1);
-                    bound = log(constants) + log(u_n) - log(1 - u_n);
-                    ru = min(ru, bound);
-                }
-                // meet to standard normal's mean
-                lu -= mean[k];
-                ru -= mean[k];
+                // random sampling of maximum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(0, mean[v])$ 
+                int cnt = _word_frequency[v];
+                double lu = std::pow(sampler::uniform(0, 1), 1.0/(double)cnt) * mean[v];
+                lu = log(constants) + log(lu) - log(1 - lu);
+                // random sampling of minimum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(mean[v], 1)$
+                cnt = get_sum_word_frequency() - _word_frequency[v];
+                double ru = (1.0 - mean[v]) * (1.0 - std::pow(sampler::uniform(0, 1), 1.0/(double)cnt)) + mean[v];
+                ru = log(constants) + log(ru) - log(1 - ru);
+                // scaling probabilistic variable following logistic distribution to standard normal
+                lu = (lu - mean[v]) / (PI * LVAR);
+                ru = (ru - mean[v]) / (PI * LVAR);
+                assert(lu < ru);
                 double noise = _scan->generate_noise_for_psi_from_truncated_normal_distribution(lu, ru);
                 double sampled = mean[v] + noise * sqrt(1.0 / _scan->_kappa_psi);
-                assert(sampled < 1e15);
                 _scan->_Psi[t][k][v] = sampled;
                 if (_current_iter > _burn_in_period) {
                     _scan->_EPsi[t][k][v] *= (_current_iter - _burn_in_period - 1);
