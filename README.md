@@ -22,13 +22,6 @@ d_N_context_{-I} d_N_context_{-I+1} ... d_N_context_{-1} d_N_context_{+1} d_N_co
 
 `time_labels.txt`: each line correspond to time label of corresponding snippet.
 
-```
-0
-1
-...
-T
-```
-
 ## Run
 
 compile and train.
