@@ -62,7 +62,6 @@ void split_word_by(const wstring &str, wchar_t delim, vector<wstring> &elems) {
         elems.push_back(item);
     }
 }
-
 bool ends_with(const std::string& str, const std::string& suffix) {
     size_t len1 = str.size();
     size_t len2 = suffix.size();
@@ -75,10 +74,8 @@ public:
     Vocab *_vocab;
     vector<vector<size_t>> _dataset;
     vector<vector<size_t>> _validation_dataset;
-    vector<int> _years;
-    vector<int> _years_validation;
-    vector<string> _target_words;
-    vector<string> _target_words_validation;
+    vector<int> _times;
+    vector<int> _times_validation;
     unordered_map<size_t, int> _word_frequency;
     unordered_map<size_t, int> _word_frequency_validation;
 
@@ -136,26 +133,16 @@ public:
             _probs[k] = 0.0;
         }
     }
-    void load_document(string filepath) {
+    void load_documents(string filepath) {
         wifstream ifs(filepath.c_str());
         assert(ifs.fail() == false);
         wstring sentence;
-
-        vector<string> dir_tar_year_ex;
-        split_string_by(filepath, '/', dir_tar_year_ex);
-        vector<string> tar_year_ex;
-        split_string_by(dir_tar_year_ex.back(), '_', tar_year_ex);
-        vector<string> year_ex;
-        split_string_by(tar_year_ex.back(), '.', year_ex);
-
         while (getline(ifs, sentence) && !ifs.eof()) {
             int doc_id = _dataset.size();
             _dataset.push_back(vector<size_t>());
             vector<wstring> words;
             split_word_by(sentence, L' ', words);
             add_document(words, doc_id);
-            _years.push_back((stoi(year_ex.front()) - 1810) / 20);
-            _target_words.push_back(tar_year_ex.front());
         }
     }
     void add_document(vector<wstring> &words, int doc_id) {
@@ -166,6 +153,14 @@ public:
             size_t word_id = _vocab->add_string(word);
             doc.push_back(word_id);
             _word_frequency[word_id] += 1;
+        }
+    }
+    void load_time_labels(string filepath) {
+        wifstream ifs(filepath.c_str());
+        assert(ifs.fail() == false);
+        wstring time;
+        while (getline(ifs, time) && !ifs.eof()) {
+            _times.push_back(stoi(time));
         }
     }
     void set_num_sense(int n_k) {
@@ -219,7 +214,7 @@ public:
         double** logistic_psi_t = _logistic_Psi[t];
         double* logistic_phi_t = _logistic_Phi[t];
         for (int n=0; n<_scan->_num_docs; ++n) {
-            if (_years[n] != t) continue;
+            if (_times[n] != t) continue;
             // calculation for $\phi^t_k$
             double* probs_n = _probs;
             for (int k=0; k<_scan->_n_k; ++k) {
@@ -235,7 +230,7 @@ public:
                     probs_n[k] += log(logistic_psi_t[k][word_id]);
                 }
             }
-            // calculation of constants
+            // calculation of constants for softmax transformation
             double constants = 0.0;
             for (int k=0; k<_scan->_n_k; ++k) {
                 constants = _logsumexp(constants, probs_n[k], (bool)(k==0));
@@ -264,6 +259,7 @@ public:
         }
     }
     void sample_phi(int t) {
+        // sample phi under each time $t$
         _update_logistic_Phi();
         double* mean = new double[_scan->_n_k];
         for (int k=0; k<_scan->_n_k; ++k) {
@@ -287,7 +283,7 @@ public:
                 constants += exp(_scan->_Phi[t][i]) * (double)(i != k);
             }
             for (int n=0; n<_scan->_num_docs; ++n) {
-                if (_years[n] != t) continue;
+                if (_times[n] != t) continue;
                 double u_n, bound;
                 if (_scan->_Z[n] == k) {
                     u_n = sampler::uniform(0, mean[k]);
@@ -315,6 +311,7 @@ public:
         return;
     }
     void sample_psi(int t) {
+        // sample phi under each {time $t$, sense $k$}
         _update_logistic_Psi();
         for (int k=0; k<_scan->_n_k; ++k) {
             double* mean = new double[_scan->_vocab_size];
@@ -341,18 +338,31 @@ public:
                 for (int i=0; i<_scan->_vocab_size; ++i) {
                     constants += exp(_scan->_Psi[t][k][i]) * (double)(i != v);
                 }
-                for (int n=0; n<_scan->_num_docs; ++n) {
-                    if (_scan->_Z[n] != k || _years[n] != t) continue;
-                    double u_n, bound;
-                    if (_word_in_document(v, n)) {
-                        u_n = sampler::uniform(0, mean[v]);
-                        bound = log(constants) + log(u_n) - log(1 - u_n);
-                        lu = max(lu, bound);
-                    } else {
-                        u_n = sampler::uniform(mean[v], 1);
-                        bound = log(constants) + log(u_n) - log(1 - u_n);
-                        ru = min(ru, bound);
-                    }
+                // for (int n=0; n<_scan->_num_docs; ++n) {
+                //     if (_scan->_Z[n] != k || _times[n] != t) continue;
+                //     double u_n, bound;
+                //     if (_word_in_document(v, n)) {
+                //         u_n = sampler::uniform(0, mean[v]);
+                //         bound = log(constants) + log(u_n) - log(1 - u_n);
+                //         lu = max(lu, bound);
+                //     } else {
+                //         u_n = sampler::uniform(mean[v], 1);
+                //         bound = log(constants) + log(u_n) - log(1 - u_n);
+                //         ru = min(ru, bound);
+                //     }
+                // }
+                double u_n, bound;
+                int word_count = _word_frequency[v];
+                for (int i=0; i<word_count; ++i) {
+                    u_n = sampler::uniform(0, mean[v]);
+                    bound = log(constants) + log(u_n) - log(1 - u_n);
+                    lu = max(lu, bound);
+                }
+                word_count = get_sum_word_frequency() - _word_frequency[v];
+                for (int i=0; i<word_count; ++i) {
+                    u_n = sampler::uniform(mean[v], 1);
+                    bound = log(constants) + log(u_n) - log(1 - u_n);
+                    ru = min(ru, bound);
                 }
                 // meet to standard normal's mean
                 lu -= mean[k];
@@ -406,7 +416,7 @@ public:
         double log_pw = 0;
         for (int t=0; t<_scan->_n_t; ++t) {
             for (int n=0; n<_scan->_num_docs; ++n) {
-                if (_years[n] != t) continue;
+                if (_times[n] != t) continue;
                 int assigned_sense = _scan->_Z[n];
                 for (int i=0; i<_scan->_context_window_width; ++i) {
                     size_t word_id = _dataset[n][i];
@@ -442,8 +452,7 @@ public:
         oarchive << *_scan;
         oarchive << _word_frequency;
         oarchive << _dataset;
-        oarchive << _years;
-        oarchive << _target_words;
+        oarchive << _times;
         oarchive << _burn_in_period;
         oarchive << _ignore_word_count;
     }
@@ -457,8 +466,7 @@ public:
             iarchive >> *_scan;
             iarchive >> _word_frequency;
             iarchive >> _dataset;
-            iarchive >> _years;
-            iarchive >> _target_words;
+            iarchive >> _times;
             iarchive >> _burn_in_period;
             iarchive >> _ignore_word_count;
             return true;
@@ -468,21 +476,12 @@ public:
 };
 
 void read_data(string data_path, SCANTrainer &trainer) {
-    const char* path = data_path.c_str();
-    DIR *dp;
-    dp = opendir(path);
-    assert (dp != NULL);
-    dirent* entry = readdir(dp);
-    while (entry != NULL){
-        const char *cstr = entry->d_name;
-        string file_path = string(cstr);
-        if (ends_with(file_path, ".txt")) {
-            // std::cout << "loading " << file_path << std::endl;
-            trainer.load_document(data_path + file_path);
-        }
-        entry = readdir(dp);
-    }
+    string documents_path = data_path+"documents.txt";
+    string time_labels_path = data_path+"time_labels.txt";
+    trainer.load_documents(documents_path);
+    trainer.load_time_labels(time_labels_path);
 }
+
 // hyper parameters flags
 DEFINE_int32(num_sense, 8, "number of sense");
 DEFINE_int32(num_time, 10, "number of time interval");
@@ -494,8 +493,8 @@ DEFINE_int32(context_window_width, 10, "context window width");
 DEFINE_int32(num_iteration, 1000, "number of iteration");
 DEFINE_int32(burn_in_period, 150, "burn in period");
 DEFINE_int32(ignore_word_count, 3, "threshold of low-frequency words");
-DEFINE_string(data_path, "./COHA/corpus/", "path to dataset for training");
-DEFINE_string(validation_data_path, "./COHA/corpus", "path to dataset for validation");
+DEFINE_string(data_path, "./data/transport/", "path to dataset for training");
+DEFINE_string(validation_data_path, "./data/transport/", "path to dataset for validation");
 DEFINE_string(save_path, "./bin/scan.model", "path to saving model");
 
 int main(int argc, char *argv[]) {
