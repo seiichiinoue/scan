@@ -3,6 +3,7 @@
 #include <chrono>
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_rng.h>
+#include <boost/math/special_functions/erf.hpp>
 
 using namespace std;
 
@@ -36,6 +37,22 @@ namespace scan {
         static double uniform_int(int min=0, int max=0) {
             uniform_int_distribution<> rand(min, max);
             return rand(mt);
+        }
+        double _normal_cdf(double x) {
+            return 0.5 * erfc(-x * std::sqrt(0.5));
+        }
+        double _inverse_normal_cdf(double p) {
+            // quantile function:
+            // https://en.wikipedia.org/wiki/Normal_distribution#Quantile_function
+            return -1 * std::sqrt(2) * boost::math::erfc_inv(2 * p);
+        }
+        double truncated_normal(double a, double b) {
+            // random sampling from truncated normal:
+            // https://people.sc.fsu.edu/~jburkardt/cpp_src/truncated_normal/truncated_normal.html
+            double a_cdf = _normal_cdf(a);
+            double b_cdf = _normal_cdf(b);
+            double u = uniform(a_cdf, b_cdf);
+            return _inverse_normal_cdf(u);
         }
         int multinomial(size_t k, double* p) {
             // settings for gsl random number generator
