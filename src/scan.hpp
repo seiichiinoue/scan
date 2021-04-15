@@ -10,8 +10,9 @@
 #include <random>
 #include <fstream>
 #include <vector>
-#include "sampler.hpp"
 #include "common.hpp"
+#include "sampler.hpp"
+
 using namespace std;
 
 namespace scan {
@@ -36,8 +37,7 @@ namespace scan {
         double** _EPhi;
         double*** _EPsi;
 
-        normal_distribution<double> _normal_distribution_for_phi;
-        normal_distribution<double> _normal_distribution_for_psi;
+        normal_distribution<double> _standard_normal_distribution;
 
         SCAN() {
             _n_k = NUM_SENSE;
@@ -58,8 +58,7 @@ namespace scan {
             _EPhi = NULL;
             _EPsi = NULL;
             
-            _normal_distribution_for_phi = normal_distribution<double>(0, 1);
-            _normal_distribution_for_psi = normal_distribution<double>(0, 1);
+            _standard_normal_distribution = normal_distribution<double>(0, 1);
         }
         ~SCAN() {}
 
@@ -80,7 +79,7 @@ namespace scan {
                 _Phi[t] = new double[_n_k];
                 _EPhi[t] = new double[_n_k];
                 for (int k=0; k<_n_k; ++k) {
-                    _Phi[t][k] = generate_noise_for_phi_from_normal_distribution();
+                    _Phi[t][k] = generate_noise_from_normal_distribution() * sqrt(1.0 / _kappa_phi);
                     _EPhi[t][k] = _Phi[t][k];
                 }
             }
@@ -91,31 +90,14 @@ namespace scan {
                     _Psi[t][k] = new double[_vocab_size];
                     _EPsi[t][k] = new double[_vocab_size];
                     for (int v=0; v<_vocab_size; ++v) {
-                        _Psi[t][k][v] = generate_noise_for_psi_from_normal_distribution();
+                        _Psi[t][k][v] = generate_noise_from_normal_distribution() * sqrt(1.0 / _kappa_phi);
                         _EPsi[t][k][v] = _Psi[t][k][v];
                     }
                 }
             }
         }
-        double generate_noise_for_phi_from_normal_distribution() {
-            return _normal_distribution_for_phi(sampler::minstd);
-        }
-        double generate_noise_for_psi_from_normal_distribution() {
-            return _normal_distribution_for_psi(sampler::minstd);
-        }
-        double generate_noise_for_phi_from_truncated_normal_distribution(double lb, double ub) {
-            double sampled = generate_noise_for_phi_from_normal_distribution();
-            while (sampled <= lb || sampled >= ub) {
-                sampled = generate_noise_for_phi_from_normal_distribution();
-            }
-            return sampled;
-        }
-        double generate_noise_for_psi_from_truncated_normal_distribution(double lb, double ub) {
-            double sampled = generate_noise_for_psi_from_normal_distribution();
-            while (sampled <= lb || sampled >= ub) {
-                sampled = generate_noise_for_psi_from_normal_distribution();
-            }
-            return sampled;
+        double generate_noise_from_normal_distribution() {
+            return _standard_normal_distribution(sampler::minstd);
         }
         void logisitc_transformation(int t, double* vec, bool evalue=false) {
             double u = 0;
