@@ -42,8 +42,8 @@ namespace scan {
             return 0.5 * erfc(-x * std::sqrt(0.5));
         }
         double _inverse_normal_cdf(double p) {
-            // quantile function:
-            // https://en.wikipedia.org/wiki/Normal_distribution#Quantile_function
+            // quantile function (norminv):
+            // https://jp.mathworks.com/help/stats/norminv.html
             return -1 * std::sqrt(2) * boost::math::erfc_inv(2 * p);
         }
         double truncated_normal(double a, double b) {
