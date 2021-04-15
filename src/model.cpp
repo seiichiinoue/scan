@@ -86,6 +86,8 @@ public:
     int _burn_in_period;
     int _ignore_word_count;
     int _current_iter;
+    int _sense_criteria_idx;
+    int _vocab_criteria_idx;
     
     SCANTrainer() {
         setlocale(LC_CTYPE, "ja_JP.UTF-8");
@@ -104,6 +106,8 @@ public:
         _burn_in_period = BURN_IN_PERIOD;
         _ignore_word_count = IGNORE_WORD_COUNT;
         _current_iter = 0;
+        _sense_criteria_idx = 0;
+        _vocab_criteria_idx = 0;
     }
     ~SCANTrainer() {
         delete _scan;
@@ -131,6 +135,23 @@ public:
         }
         for (int k=0; k<_scan->_n_k; ++k) {
             _probs[k] = 0.0;
+        }
+        
+        _sense_criteria_idx = _scan->_n_k-1;
+        _vocab_criteria_idx = vocab_size-1;
+        if (_word_frequency[_vocab_criteria_idx] < _ignore_word_count) {
+            for (int v=vocab_size-1; v>=0; --v) {
+                if (_word_frequency[v] >= _ignore_word_count) {
+                    _vocab_criteria_idx = v;
+                    break;
+                }
+            }
+        }
+        for (int t=0; t<_scan->_n_t; ++t) {
+            _scan->_Phi[t][_sense_criteria_idx] = 0.0;
+            for (int k=0; k<_scan->_n_k; ++k) {
+                _scan->_Psi[t][k][_vocab_criteria_idx] = 0.0;
+            }
         }
     }
     void load_documents(string filepath) {
@@ -277,6 +298,9 @@ public:
             }
         }
         for (int k=0; k<_scan->_n_k; ++k) {
+            if (k == _sense_criteria_idx) {
+                continue;
+            }
             double constants = 0;
             for (int i=0; i<_scan->_n_k; ++i) {
                 constants += exp(_scan->_Phi[t][i]) * (double)(i != k);
@@ -287,18 +311,25 @@ public:
                 if (_scan->_Z[n] == k) cnt++;
                 else cnt_else++;
             }
-            // random sampling of maximum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(0, mean[k])$ 
-            double lu = std::pow(sampler::uniform(0, 1), 1.0/(double)cnt) * mean[k];
-            lu = log(constants) + log(lu) - log(1 - lu);
-            // random sampling of minimum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(mean[k], 1)$
-            double ru = (1.0 - mean[k]) * (1.0 - std::pow(sampler::uniform(0, 1), 1.0/(double)cnt_else)) + mean[k];
-            ru = log(constants) + log(ru) - log(1 - ru);
-            // scaling probabilistic variable following logistic distribution to standard normal
-            lu = (lu - mean[k]) / (PI * LVAR);
-            ru = (ru - mean[k]) / (PI * LVAR);
+            double lu, ru;
+            if (cnt == 0) {
+                lu = -5.0;
+            } else if (cnt_else == 0) {
+                ru = 5.0;
+            } else {
+                // random sampling of maximum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(0, mean[k])$ 
+                lu = std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt) * mean[k];
+                lu = log(constants) + log(lu) - log(1 - lu);
+                // random sampling of minimum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(mean[k], 1)$
+                ru = (1.0 - mean[k]) * (1.0 - std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt_else)) + mean[k];
+                ru = log(constants) + log(ru) - log(1 - ru);
+                // scaling probabilistic variable following logistic distribution to standard normal
+                lu = (lu - _scan->_Phi[t][k]) / (PI * LVAR);
+                ru = (ru - _scan->_Phi[t][k]) / (PI * LVAR);
+            }
             assert(lu < ru);
-            double noise = _scan->generate_noise_for_phi_from_truncated_normal_distribution(lu, ru);
-            double sampled = mean[k] + noise * sqrt(1.0 / _scan->_kappa_phi);
+            double noise = sampler::truncated_normal(lu, ru);
+            double sampled = _scan->_Phi[t][k] + noise * sqrt(1.0 / _scan->_kappa_phi);
             _scan->_Phi[t][k] = sampled;
             if (_current_iter > _burn_in_period) {
                 _scan->_EPhi[t][k] *= (_current_iter - _burn_in_period - 1);
@@ -328,27 +359,52 @@ public:
                 }
             }
             for (int v=0; v<_scan->_vocab_size; ++v) {
+                if (v == _vocab_criteria_idx) {
+                    continue;
+                }
                 if (_word_frequency[v] < _ignore_word_count) {
                     continue;
                 }
                 double constants = 0;
                 for (int i=0; i<_scan->_vocab_size; ++i) {
+                    if (_word_frequency[i] < _ignore_word_count) {
+                        continue;
+                    }
                     constants += exp(_scan->_Psi[t][k][i]) * (double)(i != v);
                 }
-                // random sampling of maximum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(0, mean[v])$ 
-                int cnt = _word_frequency[v];
-                double lu = std::pow(sampler::uniform(0, 1), 1.0/(double)cnt) * mean[v];
-                lu = log(constants) + log(lu) - log(1 - lu);
-                // random sampling of minimum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(mean[v], 1)$
-                cnt = get_sum_word_frequency() - _word_frequency[v];
-                double ru = (1.0 - mean[v]) * (1.0 - std::pow(sampler::uniform(0, 1), 1.0/(double)cnt)) + mean[v];
-                ru = log(constants) + log(ru) - log(1 - ru);
-                // scaling probabilistic variable following logistic distribution to standard normal
-                lu = (lu - mean[v]) / (PI * LVAR);
-                ru = (ru - mean[v]) / (PI * LVAR);
+                int cnt = 0, cnt_else = 0;
+                for (int n=0; n<_scan->_num_docs; ++n) {
+                    if (_times[n] != t || _scan->_Z[n] != k) continue;
+                    for (int i=0; i<_scan->_context_window_width; ++i) {
+                        size_t word_id = _dataset[n][i];
+                        if (_word_frequency[word_id] < _ignore_word_count) {
+                            continue;
+                        }
+                        if (word_id == v) cnt++;
+                        else cnt_else++;
+                    }
+                }
+                double lu, ru;
+                if (cnt == 0) {
+                    lu = -5.0;
+                } else if (cnt_else == 0) {
+                    ru = 5.0;
+                } else {
+                    // random sampling of maximum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(0, mean[v])$ 
+                    lu = std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt) * mean[v];
+                    lu = log(constants) + log(lu) - log(1 - lu);
+                    // random sampling of minimum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(mean[v], 1)$
+                    ru = (1.0 - mean[v]) * (1.0 - std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt_else)) + mean[v];
+                    ru = log(constants) + log(ru) - log(1 - ru);
+                    // scaling probabilistic variable following logistic distribution to standard normal
+                    lu = (lu - _scan->_Psi[t][k][v]) / (PI * LVAR);
+                    ru = (ru - _scan->_Psi[t][k][v]) / (PI * LVAR);
+
+                }
+
                 assert(lu < ru);
-                double noise = _scan->generate_noise_for_psi_from_truncated_normal_distribution(lu, ru);
-                double sampled = mean[v] + noise * sqrt(1.0 / _scan->_kappa_psi);
+                double noise = sampler::truncated_normal(lu, ru);
+                double sampled = _scan->_Psi[t][k][v] + noise * sqrt(1.0 / _scan->_kappa_psi);
                 _scan->_Psi[t][k][v] = sampled;
                 if (_current_iter > _burn_in_period) {
                     _scan->_EPsi[t][k][v] *= (_current_iter - _burn_in_period - 1);
