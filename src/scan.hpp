@@ -51,7 +51,7 @@ namespace scan {
 
             _kappa_phi = KAPPA_PHI;
             _kappa_psi = KAPPA_PSI;
-            _Ekappa_phi = 0.0;
+            _Ekappa_phi = KAPPA_PHI;
             _Z = NULL;
             _Phi = NULL;
             _Psi = NULL;
