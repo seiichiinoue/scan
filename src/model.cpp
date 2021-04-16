@@ -313,21 +313,18 @@ public:
                 else cnt_else++;
             }
             double lu, ru;
-            if (cnt == 0) {
-                lu = -5.0;
-            } else if (cnt_else == 0) {
-                ru = 5.0;
-            } else {
-                // random sampling of maximum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(0, lmean[k])$ 
-                lu = std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt) * lmean[k];
-                lu = log(constants) + log(lu) - log(1 - lu);
-                // random sampling of minimum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(lmean[k], 1)$
-                ru = (1.0 - lmean[k]) * (1.0 - std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt_else)) + lmean[k];
-                ru = log(constants) + log(ru) - log(1 - ru);
-                // scaling probabilistic variable following logistic distribution to standard normal
-                lu = (lu - mean[k]) / (PI * LVAR);
-                ru = (ru - mean[k]) / (PI * LVAR);
-            }
+            // random sampling of maximum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(0, lmean[k])$ 
+            lu = std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt) * lmean[k];
+            lu = log(constants) + log(lu) - log(1 - lu);
+            // random sampling of minimum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(lmean[k], 1)$
+            ru = (1.0 - lmean[k]) * (1.0 - std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt_else)) + lmean[k];
+            ru = log(constants) + log(ru) - log(1 - ru);
+            // scaling probabilistic variable following logistic distribution to standard normal
+            lu = (lu - mean[k]) / (PI * LVAR);
+            ru = (ru - mean[k]) / (PI * LVAR);
+            // truncate to avoid overflow in erfc
+            if (lu <= -3.0) lu = -3.0;
+            if (ru >= 3.0) ru = 3.0;
             assert(lu < ru);
             double noise = sampler::truncated_normal(lu, ru);
             double sampled = mean[k] + noise * sqrt(1.0 / _scan->_kappa_phi);
@@ -387,21 +384,18 @@ public:
                     }
                 }
                 double lu, ru;
-                if (cnt == 0) {
-                    lu = -5.0;
-                } else if (cnt_else == 0) {
-                    ru = 5.0;
-                } else {
-                    // random sampling of maximum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(0, lmean[v])$ 
-                    lu = std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt) * lmean[v];
-                    lu = log(constants) + log(lu) - log(1 - lu);
-                    // random sampling of minimum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(lmean[v], 1)$
-                    ru = (1.0 - lmean[v]) * (1.0 - std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt_else)) + lmean[v];
-                    ru = log(constants) + log(ru) - log(1 - ru);
-                    // scaling probabilistic variable following logistic distribution to standard normal
-                    lu = (lu - mean[v]) / (PI * LVAR);
-                    ru = (ru - mean[v]) / (PI * LVAR);
-                }
+                // random sampling of maximum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(0, lmean[v])$ 
+                lu = std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt) * lmean[v];
+                lu = log(constants) + log(lu) - log(1 - lu);
+                // random sampling of minimum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(lmean[v], 1)$
+                ru = (1.0 - lmean[v]) * (1.0 - std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt_else)) + lmean[v];
+                ru = log(constants) + log(ru) - log(1 - ru);
+                // scaling probabilistic variable following logistic distribution to standard normal
+                lu = (lu - mean[v]) / (PI * LVAR);
+                ru = (ru - mean[v]) / (PI * LVAR);
+                // truncate to avoid overflow in erfc
+                if (lu <= -3.0) lu = -3.0;
+                if (ru >= 3.0) ru = 3.0;
                 assert(lu < ru);
                 double noise = sampler::truncated_normal(lu, ru);
                 double sampled = mean[v] + noise * sqrt(1.0 / _scan->_kappa_psi);
