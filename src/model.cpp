@@ -124,13 +124,13 @@ public:
 
         for (int t=0; t<_scan->_n_t; ++t) {
             _logistic_Phi[t] = new double[_scan->_n_k];
-            _scan->logisitc_transformation(t, _logistic_Phi[t]);
+            _scan->logistic_transformation(t, _logistic_Phi[t]);
         }
         for (int t=0; t<_scan->_n_t; ++t) {
             _logistic_Psi[t] = new double*[_scan->_n_k];
             for (int k=0; k<_scan->_n_k; ++k) {
                 _logistic_Psi[t][k] = new double[_scan->_vocab_size];
-                _scan->logisitc_transformation(t, k, _logistic_Psi[t][k]);
+                _scan->logistic_transformation(t, k, _logistic_Psi[t][k]);
             }
         }
         for (int k=0; k<_scan->_n_k; ++k) {
@@ -254,7 +254,7 @@ public:
             // calculation of constants for softmax transformation
             double constants = 0.0;
             for (int k=0; k<_scan->_n_k; ++k) {
-                constants = _logsumexp(constants, probs_n[k], (bool)(k==0));
+                constants = logsumexp(constants, probs_n[k], (bool)(k == 0));
             }
             for (int k=0; k<_scan->_n_k; ++k) {
                 probs_n[k] -= constants;
@@ -265,18 +265,6 @@ public:
             // random sampling from multinomial distribution and assign new sense
             int sense = sampler::multinomial((size_t)_scan->_n_k, probs_n);
             _scan->_Z[n] = sense;
-        }
-    }
-    double _logsumexp(double x, double y, bool flg) {
-        if (flg) return y; // init mode
-        // if (x == y) return x + 0.69314718055; // log(2)
-        if (x == y) return x + std::log(2);
-        double vmin = std::min(x, y);
-        double vmax = std::max(x, y);
-        if (vmax > vmin + 50) {
-            return vmax;
-        } else {
-            return vmax + std::log(std::exp(vmin - vmax) + 1.0);
         }
     }
     void sample_phi(int t) {
@@ -322,9 +310,6 @@ public:
             // scaling probabilistic variable following logistic distribution to standard normal
             lu = (lu - mean[k]) / (PI * LVAR);
             ru = (ru - mean[k]) / (PI * LVAR);
-            // truncate to avoid overflow in erfc
-            if (lu <= -3.0) lu = -3.0;
-            if (ru >= 3.0) ru = 3.0;
             assert(lu < ru);
             double noise = sampler::truncated_normal(lu, ru);
             double sampled = mean[k] + noise * sqrt(1.0 / _scan->_kappa_phi);
@@ -393,9 +378,6 @@ public:
                 // scaling probabilistic variable following logistic distribution to standard normal
                 lu = (lu - mean[v]) / (PI * LVAR);
                 ru = (ru - mean[v]) / (PI * LVAR);
-                // truncate to avoid overflow in erfc
-                if (lu <= -3.0) lu = -3.0;
-                if (ru >= 3.0) ru = 3.0;
                 assert(lu < ru);
                 double noise = sampler::truncated_normal(lu, ru);
                 double sampled = mean[v] + noise * sqrt(1.0 / _scan->_kappa_psi);
@@ -427,16 +409,13 @@ public:
     }
     void _update_logistic_Phi(bool evalue=false) {
         for (int t=0; t<_scan->_n_t; ++t) {
-            _logistic_Phi[t] = new double[_scan->_n_k];
-            _scan->logisitc_transformation(t, _logistic_Phi[t], evalue);
+            _scan->logistic_transformation(t, _logistic_Phi[t], evalue);
         }
     }
     void _update_logistic_Psi(bool evalue=false) {
         for (int t=0; t<_scan->_n_t; ++t) {
-            _logistic_Psi[t] = new double*[_scan->_n_k];
             for (int k=0; k<_scan->_n_k; ++k) {
-                _logistic_Psi[t][k] = new double[_scan->_vocab_size];
-                _scan->logisitc_transformation(t, k, _logistic_Psi[t][k], evalue);
+                _scan->logistic_transformation(t, k, _logistic_Psi[t][k], evalue);
             }
         }
     }
