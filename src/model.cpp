@@ -283,18 +283,19 @@ public:
         // sample phi under each time $t$
         _update_logistic_Phi();
         double* mean = new double[_scan->_n_k];
-        for (int k=0; k<_scan->_n_k; ++k) {
-            mean[k] = 0.0;
-        }
+        double* lmean = new double[_scan->_n_k];
         if (t == 0) {
-            mean = _logistic_Phi[t+1];
+            mean = _scan->_Phi[t+1];
+            lmean = _logistic_Phi[t+1];
         } else if (t+1 == _scan->_n_t) {
-            mean = _logistic_Phi[t-1];
+            mean = _scan->_Phi[t-1];
+            lmean = _logistic_Phi[t-1];
         } else {
             for (int k=0; k<_scan->_n_k; ++k) {
-                mean[k] += _logistic_Phi[t-1][k];
-                mean[k] += _logistic_Phi[t+1][k];
+                mean[k] = _scan->_Phi[t-1][k] + _scan->_Phi[t+1][k];
                 mean[k] *= 0.5;
+                lmean[k] = _logistic_Phi[t-1][k] + _logistic_Phi[t+1][k];
+                lmean[k] *= 0.5;
             }
         }
         for (int k=0; k<_scan->_n_k; ++k) {
@@ -303,7 +304,7 @@ public:
             }
             double constants = 0;
             for (int i=0; i<_scan->_n_k; ++i) {
-                constants += exp(_scan->_Phi[t][i]) * (double)(i != k);
+                constants += exp(mean[i]) * (double)(i != k);
             }
             int cnt = 0, cnt_else = 0;
             for (int n=0; n<_scan->_num_docs; ++n) {
@@ -317,19 +318,19 @@ public:
             } else if (cnt_else == 0) {
                 ru = 5.0;
             } else {
-                // random sampling of maximum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(0, mean[k])$ 
-                lu = std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt) * mean[k];
+                // random sampling of maximum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(0, lmean[k])$ 
+                lu = std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt) * lmean[k];
                 lu = log(constants) + log(lu) - log(1 - lu);
-                // random sampling of minimum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(mean[k], 1)$
-                ru = (1.0 - mean[k]) * (1.0 - std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt_else)) + mean[k];
+                // random sampling of minimum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(lmean[k], 1)$
+                ru = (1.0 - lmean[k]) * (1.0 - std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt_else)) + lmean[k];
                 ru = log(constants) + log(ru) - log(1 - ru);
                 // scaling probabilistic variable following logistic distribution to standard normal
-                lu = (lu - _scan->_Phi[t][k]) / (PI * LVAR);
-                ru = (ru - _scan->_Phi[t][k]) / (PI * LVAR);
+                lu = (lu - mean[k]) / (PI * LVAR);
+                ru = (ru - mean[k]) / (PI * LVAR);
             }
             assert(lu < ru);
             double noise = sampler::truncated_normal(lu, ru);
-            double sampled = _scan->_Phi[t][k] + noise * sqrt(1.0 / _scan->_kappa_phi);
+            double sampled = mean[k] + noise * sqrt(1.0 / _scan->_kappa_phi);
             _scan->_Phi[t][k] = sampled;
             if (_current_iter > _burn_in_period) {
                 _scan->_EPhi[t][k] *= (_current_iter - _burn_in_period - 1);
@@ -344,18 +345,19 @@ public:
         _update_logistic_Psi();
         for (int k=0; k<_scan->_n_k; ++k) {
             double* mean = new double[_scan->_vocab_size];
-            for (int v=0; v<_scan->_vocab_size; ++v) {
-                mean[v] = 0.0;
-            }
+            double* lmean = new double[_scan->_vocab_size];
             if (t == 0) {
-                mean = _logistic_Psi[t+1][k];
+                mean = _scan->_Psi[t+1][k];
+                lmean = _logistic_Psi[t+1][k];
             } else if (t+1 == _scan->_n_t) {
-                mean = _logistic_Psi[t-1][k];
+                mean = _scan->_Psi[t-1][k];
+                lmean = _logistic_Psi[t-1][k];
             } else {
                 for (int v=0; v<_scan->_vocab_size; ++v) {
-                    mean[v] += _logistic_Psi[t-1][k][v];
-                    mean[v] += _logistic_Psi[t+1][k][v];
+                    mean[v] = _scan->_Psi[t-1][k][v] + _scan->_Psi[t+1][k][v];
                     mean[v] *= 0.5;
+                    lmean[v] = _logistic_Psi[t-1][k][v] + _logistic_Psi[t+1][k][v];
+                    lmean[v] *= 0.5;
                 }
             }
             for (int v=0; v<_scan->_vocab_size; ++v) {
@@ -370,7 +372,7 @@ public:
                     if (_word_frequency[i] < _ignore_word_count) {
                         continue;
                     }
-                    constants += exp(_scan->_Psi[t][k][i]) * (double)(i != v);
+                    constants += exp(mean[i]) * (double)(i != v);
                 }
                 int cnt = 0, cnt_else = 0;
                 for (int n=0; n<_scan->_num_docs; ++n) {
@@ -390,21 +392,19 @@ public:
                 } else if (cnt_else == 0) {
                     ru = 5.0;
                 } else {
-                    // random sampling of maximum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(0, mean[v])$ 
-                    lu = std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt) * mean[v];
+                    // random sampling of maximum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(0, lmean[v])$ 
+                    lu = std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt) * lmean[v];
                     lu = log(constants) + log(lu) - log(1 - lu);
-                    // random sampling of minimum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(mean[v], 1)$
-                    ru = (1.0 - mean[v]) * (1.0 - std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt_else)) + mean[v];
+                    // random sampling of minimum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(lmean[v], 1)$
+                    ru = (1.0 - lmean[v]) * (1.0 - std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt_else)) + lmean[v];
                     ru = log(constants) + log(ru) - log(1 - ru);
                     // scaling probabilistic variable following logistic distribution to standard normal
-                    lu = (lu - _scan->_Psi[t][k][v]) / (PI * LVAR);
-                    ru = (ru - _scan->_Psi[t][k][v]) / (PI * LVAR);
-
+                    lu = (lu - mean[v]) / (PI * LVAR);
+                    ru = (ru - mean[v]) / (PI * LVAR);
                 }
-
                 assert(lu < ru);
                 double noise = sampler::truncated_normal(lu, ru);
-                double sampled = _scan->_Psi[t][k][v] + noise * sqrt(1.0 / _scan->_kappa_psi);
+                double sampled = mean[v] + noise * sqrt(1.0 / _scan->_kappa_psi);
                 _scan->_Psi[t][k][v] = sampled;
                 if (_current_iter > _burn_in_period) {
                     _scan->_EPsi[t][k][v] *= (_current_iter - _burn_in_period - 1);
@@ -490,6 +490,9 @@ public:
         oarchive << _times;
         oarchive << _burn_in_period;
         oarchive << _ignore_word_count;
+        oarchive << _current_iter;
+        oarchive << _sense_criteria_idx;
+        oarchive << _vocab_criteria_idx;
     }
     bool load(string filename) {
         std::ifstream ifs(filename);
@@ -504,6 +507,9 @@ public:
             iarchive >> _times;
             iarchive >> _burn_in_period;
             iarchive >> _ignore_word_count;
+            iarchive >> _current_iter;
+            iarchive >> _sense_criteria_idx;
+            iarchive >> _vocab_criteria_idx;
             return true;
         }
         return false;
@@ -531,6 +537,7 @@ DEFINE_int32(ignore_word_count, 3, "threshold of low-frequency words");
 DEFINE_string(data_path, "./data/transport/", "path to dataset for training");
 DEFINE_string(validation_data_path, "./data/transport/", "path to dataset for validation");
 DEFINE_string(save_path, "./bin/scan.model", "path to saving model");
+DEFINE_bool(from_archive, false, "load archive or not");
 
 int main(int argc, char *argv[]) {
     google::InitGoogleLogging(*argv);
@@ -550,6 +557,10 @@ int main(int argc, char *argv[]) {
     read_data(FLAGS_data_path, trainer);
     // prepare model
     trainer.prepare();
+    // load archive
+    if (FLAGS_from_archive) {
+        trainer.load(FLAGS_save_path);
+    }
     // logging summary
     cout << "num of docs: " << trainer._scan->_num_docs << endl;
     cout << "sum of word freq: " << trainer.get_sum_word_frequency() << endl;
