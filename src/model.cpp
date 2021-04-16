@@ -124,13 +124,13 @@ public:
 
         for (int t=0; t<_scan->_n_t; ++t) {
             _logistic_Phi[t] = new double[_scan->_n_k];
-            _scan->logistic_transformation(t, _logistic_Phi[t]);
+            _logistic_transformation(t, _logistic_Phi[t]);
         }
         for (int t=0; t<_scan->_n_t; ++t) {
             _logistic_Psi[t] = new double*[_scan->_n_k];
             for (int k=0; k<_scan->_n_k; ++k) {
                 _logistic_Psi[t][k] = new double[_scan->_vocab_size];
-                _scan->logistic_transformation(t, k, _logistic_Psi[t][k]);
+                _logistic_transformation(t, k, _logistic_Psi[t][k]);
             }
         }
         for (int k=0; k<_scan->_n_k; ++k) {
@@ -409,14 +409,49 @@ public:
     }
     void _update_logistic_Phi(bool evalue=false) {
         for (int t=0; t<_scan->_n_t; ++t) {
-            _scan->logistic_transformation(t, _logistic_Phi[t], evalue);
+            _logistic_transformation(t, _logistic_Phi[t], evalue);
         }
     }
     void _update_logistic_Psi(bool evalue=false) {
         for (int t=0; t<_scan->_n_t; ++t) {
             for (int k=0; k<_scan->_n_k; ++k) {
-                _scan->logistic_transformation(t, k, _logistic_Psi[t][k], evalue);
+                _logistic_transformation(t, k, _logistic_Psi[t][k], evalue);
             }
+        }
+    }
+    void _logistic_transformation(int t, double* vec, bool evalue=false) {
+        double* phi_t;
+        if (evalue) {
+            phi_t = _scan->_EPhi[t];
+        } else {
+            phi_t = _scan->_Phi[t];
+        }
+        double u = 0.0;
+        for (int k=0; k<_scan->_n_k; ++k) {
+            u = logsumexp(u, phi_t[k], (bool)(k == 0));
+        }
+        for (int k=0; k<_scan->_n_k; ++k) {
+            vec[k] = exp(phi_t[k] - u);
+        }
+    }
+    void _logistic_transformation(int t, int k, double* vec, bool evalue=false) {
+        double* psi_t_k;
+        if (evalue) {
+            psi_t_k = _scan->_EPsi[t][k];
+        } else {
+            psi_t_k = _scan->_Psi[t][k];
+        }
+        double u = 0.0;
+        bool init_flag = 1;
+        for (int v=0; v<_scan->_vocab_size; ++v) {
+            if (_word_frequency[v] < _ignore_word_count) {
+                continue;
+            }
+            u = logsumexp(u, psi_t_k[v], init_flag);
+            if (init_flag) init_flag = 0;
+        }
+        for (int v=0; v<_scan->_vocab_size; ++v) {
+            vec[v] = exp(psi_t_k[v] - u);
         }
     }
     double compute_log_likelihood() {
