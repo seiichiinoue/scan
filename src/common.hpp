@@ -13,3 +13,17 @@
 #define IGNORE_WORD_COUNT 3
 #define PI 3.14159265358979323846
 #define LVAR 0.5773502691896257     // sqrt(1/3)
+
+namespace scan {
+    double logsumexp(double x, double y, bool flg) {
+        if (flg) return y; // init mode
+        if (x == y) return x + std::log(2);
+        double vmin = std::min(x, y);
+        double vmax = std::max(x, y);
+        if (vmax > vmin + 50) {
+            return vmax;
+        } else {
+            return vmax + std::log(std::exp(vmin - vmax) + 1.0);
+        }
+    }
+}

@@ -99,37 +99,34 @@ namespace scan {
         double generate_noise_from_normal_distribution() {
             return _standard_normal_distribution(sampler::minstd);
         }
-        void logisitc_transformation(int t, double* vec, bool evalue=false) {
-            double u = 0;
-            
+        void logistic_transformation(int t, double* vec, bool evalue=false) {
+            double* phi_t;
+            if (evalue) {
+                phi_t = _EPhi[t];
+            } else {
+                phi_t = _Phi[t];
+            }
+            double u = 0.0;
             for (int k=0; k<_n_k; ++k) {
-                double val;
-                if (evalue) {
-                    val = std::exp(_EPhi[t][k]);
-                } else {
-                    val = std::exp(_Phi[t][k]);
-                }
-                vec[k] = val;
-                u += val;
+                u = logsumexp(u, phi_t[k], (bool)(k == 0));
             }
             for (int k=0; k<_n_k; ++k) {
-                vec[k] /= u;
+                vec[k] = exp(phi_t[k] - u);
             }
         }
-        void logisitc_transformation(int t, int k, double* vec, bool evalue=false) {
-            double u = 0;
+        void logistic_transformation(int t, int k, double* vec, bool evalue=false) {
+            double* psi_t_k;
+            if (evalue) {
+                psi_t_k = _EPsi[t][k];
+            } else {
+                psi_t_k = _Psi[t][k];
+            }
+            double u = 0.0;
             for (int v=0; v<_vocab_size; ++v) {
-                double val;
-                if (evalue) {
-                    val = std::exp(_EPsi[t][k][v]);
-                } else {
-                    val = std::exp(_Psi[t][k][v]);
-                }
-                vec[v] = val;
-                u += val;
+                u = logsumexp(u, psi_t_k[v], (bool)(v == 0));
             }
             for (int v=0; v<_vocab_size; ++v) {
-                vec[v] /= u;
+                vec[v] = exp(psi_t_k[v] - u);
             }
         }
         template<class Archive>
