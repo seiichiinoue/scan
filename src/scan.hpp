@@ -90,7 +90,7 @@ namespace scan {
                     _Psi[t][k] = new double[_vocab_size];
                     _EPsi[t][k] = new double[_vocab_size];
                     for (int v=0; v<_vocab_size; ++v) {
-                        _Psi[t][k][v] = generate_noise_from_normal_distribution() * sqrt(1.0 / _kappa_phi);
+                        _Psi[t][k][v] = generate_noise_from_normal_distribution() * sqrt(1.0 / _kappa_psi);
                         _EPsi[t][k][v] = _Psi[t][k][v];
                     }
                 }
