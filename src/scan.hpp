@@ -99,36 +99,6 @@ namespace scan {
         double generate_noise_from_normal_distribution() {
             return _standard_normal_distribution(sampler::minstd);
         }
-        void logistic_transformation(int t, double* vec, bool evalue=false) {
-            double* phi_t;
-            if (evalue) {
-                phi_t = _EPhi[t];
-            } else {
-                phi_t = _Phi[t];
-            }
-            double u = 0.0;
-            for (int k=0; k<_n_k; ++k) {
-                u = logsumexp(u, phi_t[k], (bool)(k == 0));
-            }
-            for (int k=0; k<_n_k; ++k) {
-                vec[k] = exp(phi_t[k] - u);
-            }
-        }
-        void logistic_transformation(int t, int k, double* vec, bool evalue=false) {
-            double* psi_t_k;
-            if (evalue) {
-                psi_t_k = _EPsi[t][k];
-            } else {
-                psi_t_k = _Psi[t][k];
-            }
-            double u = 0.0;
-            for (int v=0; v<_vocab_size; ++v) {
-                u = logsumexp(u, psi_t_k[v], (bool)(v == 0));
-            }
-            for (int v=0; v<_vocab_size; ++v) {
-                vec[v] = exp(psi_t_k[v] - u);
-            }
-        }
         template<class Archive>
         void serialize(Archive &archive, unsigned int version) {
             boost::serialization::split_free(archive, *this, version);
