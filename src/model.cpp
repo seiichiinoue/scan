@@ -86,6 +86,7 @@ public:
     int _burn_in_period;
     int _ignore_word_count;
     int _kappa_phi_interval;
+    int _kappa_phi_start;
     int _current_iter;
     int _sense_criteria_idx;
     int _vocab_criteria_idx;
@@ -106,7 +107,8 @@ public:
 
         _burn_in_period = BURN_IN_PERIOD;
         _ignore_word_count = IGNORE_WORD_COUNT;
-        _kappa_phi_interval = 1;
+        _kappa_phi_start = KAPPA_PHI_START;
+        _kappa_phi_interval = KAPPA_PHI_INTERVAL;
         _current_iter = 0;
         _sense_criteria_idx = 0;
         _vocab_criteria_idx = 0;
@@ -212,9 +214,6 @@ public:
     }
     void set_ignore_word_count(int ignore_word_count) {
         _ignore_word_count = ignore_word_count;
-    }
-    void set_kappa_phi_interval(int kappa_phi_interval) {
-        _kappa_phi_interval = kappa_phi_interval;
     }
     int get_sum_word_frequency() {
         int sum = 0;
@@ -413,10 +412,10 @@ public:
     }
     void sample_kappa() {
         _scan->_kappa_phi = sampler::gamma(_scan->_gamma_a, _scan->_gamma_b);
-        if (_current_iter > _burn_in_period) {
-            _scan->_Ekappa_phi *= ((_current_iter - _burn_in_period) / _kappa_phi_interval);
+        if (_current_iter > _kappa_phi_start) {
+            _scan->_Ekappa_phi *= ((_current_iter - _kappa_phi_start) / _kappa_phi_interval);
             _scan->_Ekappa_phi += _scan->_kappa_phi;
-            _scan->_Ekappa_phi /= (((_current_iter - _burn_in_period) / _kappa_phi_interval) + 1);
+            _scan->_Ekappa_phi /= (((_current_iter - _kappa_phi_start) / _kappa_phi_interval) + 1);
         }
         return;
     }
@@ -500,7 +499,7 @@ public:
                 sample_phi(t);
                 sample_psi(t);
             }
-            if (_current_iter > _burn_in_period && _current_iter % _kappa_phi_interval == 0) {
+            if (_current_iter > _kappa_phi_start && _current_iter % _kappa_phi_interval == 0) {
                 sample_kappa();
             }
             double log_pw = compute_log_likelihood();
@@ -561,7 +560,6 @@ DEFINE_double(gamma_b, 3.0, "hyperparameter of gamma prior");
 DEFINE_int32(context_window_width, 10, "context window width");
 DEFINE_int32(num_iteration, 1000, "number of iteration");
 DEFINE_int32(burn_in_period, 150, "burn in period");
-DEFINE_int32(kappa_phi_interval, 50, "interval of sampling kappa phi");
 DEFINE_int32(ignore_word_count, 3, "threshold of low-frequency words");
 DEFINE_string(data_path, "./data/transport/", "path to dataset for training");
 DEFINE_string(validation_data_path, "./data/transport/", "path to dataset for validation");
@@ -583,7 +581,6 @@ int main(int argc, char *argv[]) {
     trainer.set_context_window_width(FLAGS_context_window_width);
     trainer.set_burn_in_period(FLAGS_burn_in_period);
     trainer.set_ignore_word_count(FLAGS_ignore_word_count);
-    trainer.set_kappa_phi_interval(FLAGS_kappa_phi_interval);
     // read dataset
     read_data(FLAGS_data_path, trainer);
     // prepare model
@@ -599,8 +596,7 @@ int main(int argc, char *argv[]) {
         << ", context_window_width: " << FLAGS_context_window_width
         << ", num_iteration: " << FLAGS_num_iteration
         << ", burn_in_period: " << FLAGS_burn_in_period
-        << ", ignore_word_count: " << FLAGS_ignore_word_count
-        << ", kappa_phi_interval: " << FLAGS_kappa_phi_interval << "}" << endl;
+        << ", ignore_word_count: " << FLAGS_ignore_word_count << "}" << endl;
     cout << "num of docs: " << trainer._scan->_num_docs << endl;
     cout << "sum of word freq: " << trainer.get_sum_word_frequency() << endl;
     cout << "vocab size: " << trainer._vocab->num_words() - trainer.get_ignore_word_count() << endl;
