@@ -85,6 +85,7 @@ public:
 
     int _burn_in_period;
     int _ignore_word_count;
+    int _kappa_phi_interval;
     int _current_iter;
     int _sense_criteria_idx;
     int _vocab_criteria_idx;
@@ -105,6 +106,7 @@ public:
 
         _burn_in_period = BURN_IN_PERIOD;
         _ignore_word_count = IGNORE_WORD_COUNT;
+        _kappa_phi_interval = 1;
         _current_iter = 0;
         _sense_criteria_idx = 0;
         _vocab_criteria_idx = 0;
@@ -211,6 +213,9 @@ public:
     void set_ignore_word_count(int ignore_word_count) {
         _ignore_word_count = ignore_word_count;
     }
+    void set_kappa_phi_interval(int kappa_phi_interval) {
+        _kappa_phi_interval = kappa_phi_interval;
+    }
     int get_sum_word_frequency() {
         int sum = 0;
         for (int v=0; v<_word_frequency.size(); ++v) {
@@ -303,16 +308,16 @@ public:
             double lu, ru;
             // random sampling of maximum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(0, lmean[k])$ 
             lu = std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt) * lmean[k];
-            lu = log(constants) + log(lu) - log(1 - lu);
+            lu = log(constants) + log(lu) - log(1.0 - lu);
             // random sampling of minimum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(lmean[k], 1)$
             ru = (1.0 - lmean[k]) * (1.0 - std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt_else)) + lmean[k];
-            ru = log(constants) + log(ru) - log(1 - ru);
+            ru = log(constants) + log(ru) - log(1.0 - ru);
             // scaling probabilistic variable following logistic distribution to standard normal
             lu = (lu - mean[k]) / (PI * LVAR);
             ru = (ru - mean[k]) / (PI * LVAR);
             assert(lu < ru);
             double noise = sampler::truncated_normal(lu, ru);
-            double sampled = mean[k] + noise * sqrt(1.0 / _scan->_kappa_phi);
+            double sampled = mean[k] + noise * sqrt(1.0 / _scan->_Ekappa_phi);
             _scan->_Phi[t][k] = sampled;
             if (_current_iter > _burn_in_period) {
                 _scan->_EPhi[t][k] *= (_current_iter - _burn_in_period - 1);
@@ -320,6 +325,12 @@ public:
                 _scan->_EPhi[t][k] /= (_current_iter - _burn_in_period);
             }
         }
+        // sanity check
+        double sum = 0;
+        for (int k=0; k<_scan->_n_k; ++k) {
+            sum += _logistic_Phi[t][k];
+        }
+        assert(abs(1.0 - sum) < 1e5);
         return;
     }
     void sample_psi(int t) {
@@ -371,13 +382,15 @@ public:
                 double lu, ru;
                 // random sampling of maximum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(0, lmean[v])$ 
                 lu = std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt) * lmean[v];
-                lu = log(constants) + log(lu) - log(1 - lu);
+                lu = log(constants) + log(lu) - log(1.0 - lu);
                 // random sampling of minimum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(lmean[v], 1)$
                 ru = (1.0 - lmean[v]) * (1.0 - std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt_else)) + lmean[v];
-                ru = log(constants) + log(ru) - log(1 - ru);
+                ru = log(constants) + log(ru) - log(1.0 - ru);
                 // scaling probabilistic variable following logistic distribution to standard normal
                 lu = (lu - mean[v]) / (PI * LVAR);
                 ru = (ru - mean[v]) / (PI * LVAR);
+                // to suppress the probability of word that does not appear in documents given {time t, sense k}
+                if (cnt_else == 0) ru = 0.0;
                 assert(lu < ru);
                 double noise = sampler::truncated_normal(lu, ru);
                 double sampled = mean[v] + noise * sqrt(1.0 / _scan->_kappa_psi);
@@ -388,15 +401,22 @@ public:
                     _scan->_EPsi[t][k][v] /= (_current_iter - _burn_in_period);
                 }
             }
+            // sanity check
+            double sum = 0;
+            for (int v=0; v<_scan->_vocab_size; ++v) {
+                if (_word_frequency[v] < _ignore_word_count) continue;
+                sum += _logistic_Psi[t][k][v];
+            }
+            assert(abs(1.0 - sum) < 1e5);
         }
         return;
     }
     void sample_kappa() {
         _scan->_kappa_phi = sampler::gamma(_scan->_gamma_a, _scan->_gamma_b);
         if (_current_iter > _burn_in_period) {
-            _scan->_Ekappa_phi *= (_current_iter - _burn_in_period - 1);
-            _scan->_Ekappa_phi += _scan->_Ekappa_phi;
-            _scan->_Ekappa_phi /= (_current_iter - _burn_in_period);
+            _scan->_Ekappa_phi *= ((_current_iter - _burn_in_period) / _kappa_phi_interval);
+            _scan->_Ekappa_phi += _scan->_kappa_phi;
+            _scan->_Ekappa_phi /= (((_current_iter - _burn_in_period) / _kappa_phi_interval) + 1);
         }
         return;
     }
@@ -479,9 +499,9 @@ public:
                 sample_z(t);
                 sample_phi(t);
                 sample_psi(t);
-                if (iter % 50 == 0) {
-                    sample_kappa();
-                }
+            }
+            if (_current_iter > _burn_in_period && _current_iter % _kappa_phi_interval == 0) {
+                sample_kappa();
             }
             double log_pw = compute_log_likelihood();
             cout << "iter: " << _current_iter << "\tlog_likelihood: " << log_pw << endl;
@@ -541,10 +561,12 @@ DEFINE_double(gamma_b, 3.0, "hyperparameter of gamma prior");
 DEFINE_int32(context_window_width, 10, "context window width");
 DEFINE_int32(num_iteration, 1000, "number of iteration");
 DEFINE_int32(burn_in_period, 150, "burn in period");
+DEFINE_int32(kappa_phi_interval, 50, "interval of sampling kappa phi");
 DEFINE_int32(ignore_word_count, 3, "threshold of low-frequency words");
 DEFINE_string(data_path, "./data/transport/", "path to dataset for training");
 DEFINE_string(validation_data_path, "./data/transport/", "path to dataset for validation");
-DEFINE_string(save_path, "./bin/scan.model", "path to saving model");
+DEFINE_string(save_path, "./bin/scan.model", "path to model for archive");
+DEFINE_string(load_path, "./bin/scan.model", "path to model for loading");
 DEFINE_bool(from_archive, false, "load archive or not");
 
 int main(int argc, char *argv[]) {
@@ -561,15 +583,24 @@ int main(int argc, char *argv[]) {
     trainer.set_context_window_width(FLAGS_context_window_width);
     trainer.set_burn_in_period(FLAGS_burn_in_period);
     trainer.set_ignore_word_count(FLAGS_ignore_word_count);
+    trainer.set_kappa_phi_interval(FLAGS_kappa_phi_interval);
     // read dataset
     read_data(FLAGS_data_path, trainer);
     // prepare model
     trainer.prepare();
     // load archive
     if (FLAGS_from_archive) {
-        trainer.load(FLAGS_save_path);
+        trainer.load(FLAGS_load_path);
     }
     // logging summary
+    cout << "{num_sense: " << FLAGS_num_sense << ", num_time: " << FLAGS_num_time
+        << ", kappa_phi: " << FLAGS_kappa_phi << ", kappa_psi: " << FLAGS_kappa_psi 
+        << ", gamma_a: " << FLAGS_gamma_a << ", gamma_b: " << FLAGS_gamma_b
+        << ", context_window_width: " << FLAGS_context_window_width
+        << ", num_iteration: " << FLAGS_num_iteration
+        << ", burn_in_period: " << FLAGS_burn_in_period
+        << ", ignore_word_count: " << FLAGS_ignore_word_count
+        << ", kappa_phi_interval: " << FLAGS_kappa_phi_interval << "}" << endl;
     cout << "num of docs: " << trainer._scan->_num_docs << endl;
     cout << "sum of word freq: " << trainer.get_sum_word_frequency() << endl;
     cout << "vocab size: " << trainer._vocab->num_words() - trainer.get_ignore_word_count() << endl;
