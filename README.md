@@ -6,7 +6,7 @@ using docker to run code in this repository.
 
 ```
 $ docker build -t boost .
-$ docker run -it -b [LOCAL_PATH]:[CONTAINER_PATH] boost
+$ docker run -it -v [LOCAL_PATH]:[CONTAINER_PATH] boost
 ```
 
 ## Data
