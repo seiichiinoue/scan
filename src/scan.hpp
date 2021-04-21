@@ -60,8 +60,47 @@ namespace scan {
             
             _standard_normal_distribution = normal_distribution<double>(0, 1);
         }
-        ~SCAN() {}
-
+        ~SCAN() {
+            if (_Z != NULL) {
+                delete[] _Z;
+            }
+            if (_Phi != NULL) {
+                for (int t=0; t<_n_t; ++t) {
+                    if (_Phi[t] != NULL) {
+                        delete[] _Phi[t];
+                    }
+                }
+            }
+            if (_EPhi != NULL) {
+                for (int t=0; t<_n_t; ++t) {
+                    if (_EPhi[t] != NULL) {
+                        delete[] _EPhi[t];
+                    }
+                }
+            }
+            if (_Psi != NULL) {
+                for (int t=0; t<_n_t; ++t) {
+                    if (_Psi[t] != NULL) {
+                        for (int k=0; k<_n_k; ++k) {
+                            if (_Psi[t][k] != NULL) {
+                                delete[] _Psi[t][k];
+                            }
+                        }
+                    }
+                }
+            }
+            if (_EPsi != NULL) {
+                for (int t=0; t<_n_t; ++t) {
+                    if (_EPsi[t] != NULL) {
+                        for (int k=0; k<_n_k; ++k) {
+                            if (_EPsi[t][k] != NULL) {
+                                delete[] _EPsi[t][k];
+                            }
+                        }
+                    }
+                }
+            }
+        }
         void initialize(int vocab_size, int num_docs) {
             _vocab_size = vocab_size;
             _num_docs = num_docs;
