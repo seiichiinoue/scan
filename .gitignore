@@ -8,4 +8,5 @@ test
 # work files
 .work/
 .idea/
+out*
 *.log
