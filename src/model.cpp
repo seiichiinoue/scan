@@ -310,9 +310,13 @@ public:
         double* phi_t = _scan->_Phi[t];
         double* logistic_phi_t = _logistic_Phi[t];
         if (t == 0) {
-            _prior_mean_phi = _scan->_Phi[t+1];
+            for (int k=0; k<_scan->_n_k; ++k) {
+                _prior_mean_phi[k] = _scan->_Phi[t+1][k];
+            }
         } else if (t+1 == _scan->_n_t) {
-            _prior_mean_phi = _scan->_Phi[t-1];
+            for (int k=0; k<_scan->_n_k; ++k) {
+                _prior_mean_phi[k] = _scan->_Phi[t-1][k];
+            }
         } else {
             for (int k=0; k<_scan->_n_k; ++k) {
                 _prior_mean_phi[k] = _scan->_Phi[t-1][k] + _scan->_Phi[t+1][k];
@@ -368,9 +372,13 @@ public:
             double* psi_t_k = _scan->_Psi[t][k];
             double* logistic_psi_t_k = _logistic_Psi[t][k];
             if (t == 0) {
-                _prior_mean_psi = _scan->_Psi[t+1][k];
+                for (int v=0; v<_scan->_vocab_size; ++v) {
+                    _prior_mean_psi[v] = _scan->_Psi[t+1][k][v];
+                }
             } else if (t+1 == _scan->_n_t) {
-                _prior_mean_psi = _scan->_Psi[t-1][k];
+                for (int v=0; v<_scan->_vocab_size; ++v) {
+                    _prior_mean_psi[v] = _scan->_Psi[t-1][k][v];
+                }
             } else {
                 for (int v=0; v<_scan->_vocab_size; ++v) {
                     _prior_mean_psi[v] = _scan->_Psi[t-1][k][v] + _scan->_Psi[t+1][k][v];
