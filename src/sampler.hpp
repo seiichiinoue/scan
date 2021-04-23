@@ -52,6 +52,11 @@ namespace scan {
             double a_cdf = _normal_cdf(a);
             double b_cdf = _normal_cdf(b);
             double u = uniform(a_cdf, b_cdf);
+            if (u == 0.0) {
+                u = MIN_VAL;
+            } else if (u == 1.0) {
+                u = MAX_VAL;
+            }
             return _inverse_normal_cdf(u);
         }
         int multinomial(size_t k, double* p) {
