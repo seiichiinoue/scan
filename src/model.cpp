@@ -352,8 +352,8 @@ public:
             ru = (1.0 - logistic_phi_t[k]) * (1.0 - std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt_else)) + logistic_phi_t[k];
             ru = log(constants) + log(ru) - log(1.0 - ru);
             // scaling probabilistic variable to standard normal
-            lu = (lu - phi_t[k]);
-            ru = (ru - phi_t[k]);
+            lu = (lu - _prior_mean_phi[k]);
+            ru = (ru - _prior_mean_phi[k]);
             assert(lu < ru);
             double noise = sampler::truncated_normal(lu, ru);
             double sampled = _prior_mean_phi[k] + noise * prior_sigma;
@@ -425,8 +425,8 @@ public:
                 ru = (1.0 - logistic_psi_t_k[v]) * (1.0 - std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt_else)) + logistic_psi_t_k[v];
                 ru = log(constants) + log(ru) - log(1.0 - ru);
                 // scaling probabilistic variable to standard normal
-                lu = (lu - psi_t_k[v]);
-                ru = (ru - psi_t_k[v]);
+                lu = (lu - _prior_mean_psi[v]);
+                ru = (ru - _prior_mean_psi[v]);
                 // to suppress the probability of word that does not appear in documents given {time t, sense k}
                 if (cnt_else == 0) ru = 0.0;
                 assert(lu < ru);
