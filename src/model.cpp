@@ -310,20 +310,24 @@ public:
     void sample_phi(int t) {
         // sample phi under each time $t$
         _update_logistic_Phi();
+        double prior_sigma;
         double* phi_t = _scan->_Phi[t];
         double* logistic_phi_t = _logistic_Phi[t];
         if (t == 0) {
             for (int k=0; k<_scan->_n_k; ++k) {
                 _prior_mean_phi[k] = _scan->_Phi[t+1][k];
+                prior_sigma = sqrt(1.0 / _scan->_kappa_phi);
             }
         } else if (t+1 == _scan->_n_t) {
             for (int k=0; k<_scan->_n_k; ++k) {
                 _prior_mean_phi[k] = _scan->_Phi[t-1][k];
+                prior_sigma = sqrt(1.0 / _scan->_kappa_phi);
             }
         } else {
             for (int k=0; k<_scan->_n_k; ++k) {
                 _prior_mean_phi[k] = _scan->_Phi[t-1][k] + _scan->_Phi[t+1][k];
                 _prior_mean_phi[k] *= 0.5;
+                prior_sigma = sqrt(1.0 / (2.0 * _scan->_kappa_phi));
             }
         }
         for (int k=0; k<_scan->_n_k; ++k) {
@@ -352,7 +356,7 @@ public:
             ru = (ru - phi_t[k]);
             assert(lu < ru);
             double noise = sampler::truncated_normal(lu, ru);
-            double sampled = _prior_mean_phi[k] + noise * sqrt(1.0 / _scan->_Ekappa_phi);
+            double sampled = _prior_mean_phi[k] + noise * prior_sigma;
             _scan->_Phi[t][k] = sampled;
             if (_current_iter > _burn_in_period) {
                 _scan->_EPhi[t][k] *= (_current_iter - _burn_in_period - 1);
@@ -372,20 +376,24 @@ public:
         // sample phi under each {time $t$, sense $k$}
         _update_logistic_Psi();
         for (int k=0; k<_scan->_n_k; ++k) {
+            double prior_sigma;
             double* psi_t_k = _scan->_Psi[t][k];
             double* logistic_psi_t_k = _logistic_Psi[t][k];
             if (t == 0) {
                 for (int v=0; v<_scan->_vocab_size; ++v) {
                     _prior_mean_psi[v] = _scan->_Psi[t+1][k][v];
+                    prior_sigma = sqrt(1.0 / _scan->_kappa_psi);
                 }
             } else if (t+1 == _scan->_n_t) {
                 for (int v=0; v<_scan->_vocab_size; ++v) {
                     _prior_mean_psi[v] = _scan->_Psi[t-1][k][v];
+                    prior_sigma = sqrt(1.0 / _scan->_kappa_psi);
                 }
             } else {
                 for (int v=0; v<_scan->_vocab_size; ++v) {
                     _prior_mean_psi[v] = _scan->_Psi[t-1][k][v] + _scan->_Psi[t+1][k][v];
                     _prior_mean_psi[v] *= 0.5;
+                    prior_sigma = sqrt(1.0 / (2.0 * _scan->_kappa_psi));
                 }
             }
             for (int v=0; v<_scan->_vocab_size; ++v) {
@@ -428,7 +436,7 @@ public:
                 if (cnt_else == 0) ru = 0.0;
                 assert(lu < ru);
                 double noise = sampler::truncated_normal(lu, ru);
-                double sampled = _prior_mean_psi[v] + noise * sqrt(1.0 / _scan->_kappa_psi);
+                double sampled = _prior_mean_psi[v] + noise * prior_sigma;
                 _scan->_Psi[t][k][v] = sampled;
                 if (_current_iter > _burn_in_period) {
                     _scan->_EPsi[t][k][v] *= (_current_iter - _burn_in_period - 1);
