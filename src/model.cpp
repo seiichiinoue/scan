@@ -148,10 +148,41 @@ public:
         delete _scan;
         delete _vocab;
     }
+    void load_documents(string filepath) {
+        wifstream ifs(filepath.c_str());
+        assert(ifs.fail() == false);
+        wstring sentence;
+        while (getline(ifs, sentence) && !ifs.eof()) {
+            int doc_id = _dataset.size();
+            _dataset.push_back(vector<size_t>());
+            vector<wstring> words;
+            split_word_by(sentence, L' ', words);
+            add_document(words, doc_id);
+        }
+    }
+    void add_document(vector<wstring> &words, int doc_id) {
+        if (words.size() == 0) return;
+        vector<size_t> &doc = _dataset[doc_id];
+        for (auto word : words) {
+            if (word.size() == 0) continue;
+            size_t word_id = _vocab->add_string(word);
+            doc.push_back(word_id);
+            _word_frequency[word_id] += 1;
+        }
+    }
+    void load_time_labels(string filepath) {
+        wifstream ifs(filepath.c_str());
+        assert(ifs.fail() == false);
+        wstring time;
+        while (getline(ifs, time) && !ifs.eof()) {
+            _times.push_back(stoi(time));
+        }
+    }
     void prepare() {
         int vocab_size = _vocab->num_words();
         int num_docs = _dataset.size();
         _scan->initialize(vocab_size, num_docs);
+        _initialize_parameters();
 
         _logistic_Phi = new double*[_scan->_n_t];
         _logistic_Psi = new double**[_scan->_n_t];
@@ -191,34 +222,34 @@ public:
             }
         }
     }
-    void load_documents(string filepath) {
-        wifstream ifs(filepath.c_str());
-        assert(ifs.fail() == false);
-        wstring sentence;
-        while (getline(ifs, sentence) && !ifs.eof()) {
-            int doc_id = _dataset.size();
-            _dataset.push_back(vector<size_t>());
-            vector<wstring> words;
-            split_word_by(sentence, L' ', words);
-            add_document(words, doc_id);
-        }
-    }
-    void add_document(vector<wstring> &words, int doc_id) {
-        if (words.size() == 0) return;
-        vector<size_t> &doc = _dataset[doc_id];
-        for (auto word : words) {
-            if (word.size() == 0) continue;
-            size_t word_id = _vocab->add_string(word);
-            doc.push_back(word_id);
-            _word_frequency[word_id] += 1;
-        }
-    }
-    void load_time_labels(string filepath) {
-        wifstream ifs(filepath.c_str());
-        assert(ifs.fail() == false);
-        wstring time;
-        while (getline(ifs, time) && !ifs.eof()) {
-            _times.push_back(stoi(time));
+    void _initialize_parameters() {
+        for (int t=0; t<_scan->_n_t; ++t) {
+            for (int k=0; k<_scan->_n_k; ++k) {
+                // initialize Phi with MLE
+                int n_k = 0, sum_n_k = 0;
+                for (int n=0; n<_scan->_num_docs; ++n) {
+                    if (_times[n] != t) continue;
+                    if (_scan->_Z[n] == k) n_k++;
+                    else sum_n_k++;
+                }
+                _scan->_Phi[t][k] = ((double)n_k + 0.01) / ((double)sum_n_k + (_scan->_n_k * 0.01));
+                for (int v=0; v<_scan->_vocab_size; ++v) {
+                    // initialize Psi with MLE
+                    int n_k_v = 0, sum_n_k_v = 0;
+                    for (int n=0; n<_scan->_num_docs; ++n) {
+                        if (_times[n] != t || _scan->_Z[n] != k) continue;
+                        for (int i=0; i<_scan->_context_window_width; ++i) {
+                            size_t word_id = _dataset[n][i];
+                            if (_word_frequency[word_id] < _ignore_word_count) {
+                                continue;
+                            }
+                            if (word_id == v) n_k_v++;
+                            else sum_n_k_v++;
+                        }
+                    }
+                    _scan->_Psi[t][k][v] = ((double)n_k_v + 0.01) / ((double)sum_n_k_v + (_scan->_vocab_size * 0.01));
+                }
+            }
         }
     }
     void set_num_sense(int n_k) {
@@ -581,7 +612,7 @@ DEFINE_double(gamma_a, 7.0, "hyperparameter of gamma prior");
 DEFINE_double(gamma_b, 3.0, "hyperparameter of gamma prior");
 DEFINE_int32(context_window_width, 10, "context window width");
 DEFINE_int32(num_iteration, 1000, "number of iteration");
-DEFINE_int32(burn_in_period, 50, "burn in period");
+DEFINE_int32(burn_in_period, 500, "burn in period");
 DEFINE_int32(ignore_word_count, 3, "threshold of low-frequency words");
 DEFINE_string(data_path, "./data/transport/", "path to dataset for training");
 DEFINE_string(validation_data_path, "./data/transport/", "path to dataset for validation");
