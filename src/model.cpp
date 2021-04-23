@@ -270,8 +270,8 @@ public:
         return cnt;
     }
     void sample_z(int t) {
-        _update_logistic_Phi(true);
-        _update_logistic_Psi(true);
+        _update_logistic_Phi();
+        _update_logistic_Psi();
         double** logistic_psi_t = _logistic_Psi[t];
         double* logistic_phi_t = _logistic_Phi[t];
         for (int n=0; n<_scan->_num_docs; ++n) {
@@ -358,11 +358,6 @@ public:
             double noise = sampler::truncated_normal(lu, ru);
             double sampled = _prior_mean_phi[k] + noise * prior_sigma;
             _scan->_Phi[t][k] = sampled;
-            if (_current_iter > _burn_in_period) {
-                _scan->_EPhi[t][k] *= (_current_iter - _burn_in_period - 1);
-                _scan->_EPhi[t][k] += _scan->_Phi[t][k];
-                _scan->_EPhi[t][k] /= (_current_iter - _burn_in_period);
-            }
         }
         // sanity check
         double sum = 0;
@@ -438,11 +433,6 @@ public:
                 double noise = sampler::truncated_normal(lu, ru);
                 double sampled = _prior_mean_psi[v] + noise * prior_sigma;
                 _scan->_Psi[t][k][v] = sampled;
-                if (_current_iter > _burn_in_period) {
-                    _scan->_EPsi[t][k][v] *= (_current_iter - _burn_in_period - 1);
-                    _scan->_EPsi[t][k][v] += _scan->_Psi[t][k][v];
-                    _scan->_EPsi[t][k][v] /= (_current_iter - _burn_in_period);
-                }
             }
             // sanity check
             double sum = 0;
@@ -456,11 +446,6 @@ public:
     }
     void sample_kappa() {
         _scan->_kappa_phi = sampler::gamma(_scan->_gamma_a, _scan->_gamma_b);
-        if (_current_iter > _kappa_phi_start) {
-            _scan->_Ekappa_phi *= ((_current_iter - _kappa_phi_start) / _kappa_phi_interval);
-            _scan->_Ekappa_phi += _scan->_kappa_phi;
-            _scan->_Ekappa_phi /= (((_current_iter - _kappa_phi_start) / _kappa_phi_interval) + 1);
-        }
         return;
     }
     bool _word_in_document(size_t word_id, int doc_id) {
@@ -470,25 +455,20 @@ public:
         }
         return false;
     }
-    void _update_logistic_Phi(bool evalue=false) {
+    void _update_logistic_Phi() {
         for (int t=0; t<_scan->_n_t; ++t) {
-            _logistic_transformation(t, _logistic_Phi[t], evalue);
+            _logistic_transformation(t, _logistic_Phi[t]);
         }
     }
-    void _update_logistic_Psi(bool evalue=false) {
+    void _update_logistic_Psi() {
         for (int t=0; t<_scan->_n_t; ++t) {
             for (int k=0; k<_scan->_n_k; ++k) {
-                _logistic_transformation(t, k, _logistic_Psi[t][k], evalue);
+                _logistic_transformation(t, k, _logistic_Psi[t][k]);
             }
         }
     }
-    void _logistic_transformation(int t, double* vec, bool evalue=false) {
-        double* phi_t;
-        if (evalue) {
-            phi_t = _scan->_EPhi[t];
-        } else {
-            phi_t = _scan->_Phi[t];
-        }
+    void _logistic_transformation(int t, double* vec) {
+        double* phi_t = _scan->_Phi[t];
         double u = 0.0;
         for (int k=0; k<_scan->_n_k; ++k) {
             u = logsumexp(u, phi_t[k], (bool)(k == 0));
@@ -497,13 +477,8 @@ public:
             vec[k] = exp(phi_t[k] - u);
         }
     }
-    void _logistic_transformation(int t, int k, double* vec, bool evalue=false) {
-        double* psi_t_k;
-        if (evalue) {
-            psi_t_k = _scan->_EPsi[t][k];
-        } else {
-            psi_t_k = _scan->_Psi[t][k];
-        }
+    void _logistic_transformation(int t, int k, double* vec) {
+        double* psi_t_k = _scan->_Psi[t][k];
         double u = 0.0;
         bool init_flag = 1;
         for (int v=0; v<_scan->_vocab_size; ++v) {
@@ -518,7 +493,7 @@ public:
         }
     }
     double compute_log_likelihood() {
-        _update_logistic_Psi(true);
+        _update_logistic_Psi();
         double log_pw = 0.0;
         for (int t=0; t<_scan->_n_t; ++t) {
             for (int n=0; n<_scan->_num_docs; ++n) {
