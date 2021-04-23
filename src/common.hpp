@@ -13,8 +13,8 @@
 #define IGNORE_WORD_COUNT 3
 #define KAPPA_PHI_START 100
 #define KAPPA_PHI_INTERVAL 50
-#define PI 3.14159265358979323846
-#define LVAR 0.5773502691896257     // sqrt(1/3)
+#define MIN_VAL 1e-9
+#define MAX_VAL 1.0 - MIN_VAL
 
 namespace scan {
     double logsumexp(double x, double y, bool flg) {
