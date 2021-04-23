@@ -250,14 +250,17 @@ public:
     }
     int get_sum_word_frequency() {
         int sum = 0;
-        for (int v=0; v<_word_frequency.size(); ++v) {
+        for (int v=0; v<_vocab->num_words(); ++v) {
             if (_word_frequency[v] >= _ignore_word_count) {
                 sum += _word_frequency[v];
             }
         }
         return sum;
     }
-    int get_ignore_word_count() {
+    int get_vocab_size() {
+        return _vocab->num_words() - get_ignore_word_size();
+    }
+    int get_ignore_word_size() {
         int cnt = 0;
         for (int v=0; v<_word_frequency.size(); ++v) {
             if (_word_frequency[v] < _ignore_word_count) {
@@ -508,7 +511,7 @@ public:
     }
     double compute_log_likelihood() {
         _update_logistic_Psi(true);
-        double log_pw = 0;
+        double log_pw = 0.0;
         for (int t=0; t<_scan->_n_t; ++t) {
             for (int n=0; n<_scan->_num_docs; ++n) {
                 if (_times[n] != t) continue;
@@ -538,7 +541,7 @@ public:
             double log_pw = compute_log_likelihood();
             double ppl = exp((-1 * log_pw) / get_sum_word_frequency());
             cout << "iter: " << _current_iter 
-                << " log_likelihood: " << log_pw 
+                << " log_likelihood: " << log_pw
                 << " perplexity: " << ppl << endl;
             save(save_path);
         }
@@ -637,7 +640,7 @@ int main(int argc, char *argv[]) {
         << ", ignore_word_count: " << FLAGS_ignore_word_count << "}" << endl;
     cout << "num of docs: " << trainer._scan->_num_docs << endl;
     cout << "sum of word freq: " << trainer.get_sum_word_frequency() << endl;
-    cout << "vocab size: " << trainer._vocab->num_words() - trainer.get_ignore_word_count() << endl;
+    cout << "vocab size: " << trainer.get_vocab_size() << endl;
     // tarining
     trainer.train(FLAGS_num_iteration, FLAGS_save_path);
     return 0;
