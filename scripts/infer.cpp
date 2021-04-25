@@ -1,9 +1,5 @@
 #include "src/model.hpp"
 
-/* 
-this script for evaluating model by predicting the probability of documents next time-step (T + 1)
-*/
-
 void load_documents(string filepath, SCANTrainer &trainer, vector<vector<size_t>> &dataset, unordered_map<size_t, int> &word_frequency) {
     wifstream ifs(filepath.c_str());
     assert(ifs.fail() == false);
@@ -89,6 +85,7 @@ int main() {
     unordered_map<size_t, int> word_frequency;
     SCANTrainer trainer;
     string model_path = "./bin/transport.model";
+    // path to documents of time-step T + 1
     string data_path = "./data/transport/valid.txt";
     bool ret = trainer.load(model_path);
     trainer.initialize_cache();
