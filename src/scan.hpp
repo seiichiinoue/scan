@@ -77,7 +77,7 @@ namespace scan {
                 }
             }
         }
-        void initialize(int vocab_size, int num_docs) {
+        void initialize_cache(int vocab_size, int num_docs) {
             _vocab_size = vocab_size;
             _num_docs = num_docs;
 

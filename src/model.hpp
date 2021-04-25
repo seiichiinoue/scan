@@ -74,11 +74,8 @@ public:
     SCAN *_scan;
     Vocab *_vocab;
     vector<vector<size_t>> _dataset;
-    vector<vector<size_t>> _validation_dataset;
     vector<int> _times;
-    vector<int> _times_validation;
     unordered_map<size_t, int> _word_frequency;
-    unordered_map<size_t, int> _word_frequency_validation;
 
     double** _logistic_Phi;
     double*** _logistic_Psi;
@@ -179,12 +176,7 @@ public:
             _times.push_back(stoi(time));
         }
     }
-    void prepare() {
-        int vocab_size = _vocab->num_words();
-        int num_docs = _dataset.size();
-        _scan->initialize(vocab_size, num_docs);
-        _initialize_parameters();
-
+    void initialize_cache() {
         _logistic_Phi = new double*[_scan->_n_t];
         _logistic_Psi = new double**[_scan->_n_t];
         _probs = new double[_scan->_n_k];
@@ -205,6 +197,14 @@ public:
         for (int k=0; k<_scan->_n_k; ++k) {
             _probs[k] = 0.0;
         }
+    }
+    void prepare() {
+        int vocab_size = _vocab->num_words();
+        int num_docs = _dataset.size();
+        _scan->initialize_cache(vocab_size, num_docs);
+        // initialize parameters $\phi$ and $\psi$ with MLE
+        _initialize_parameters();
+        initialize_cache();
         
         _sense_criteria_idx = _scan->_n_k-1;
         _vocab_criteria_idx = vocab_size-1;
