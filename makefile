@@ -18,7 +18,7 @@ test:
 prob:
 	$(CC) -O3 $(STD) -o prob scripts/prob.cpp $(BOOST) $(INCLUDE) $(FMATH) $(GFLAGS) $(GSL)
 
-prob:
+infer:
 	$(CC) -O3 $(STD) -o infer scripts/infer.cpp $(BOOST) $(INCLUDE) $(FMATH) $(GFLAGS) $(GSL)
 
 clean:
