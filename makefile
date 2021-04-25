@@ -18,6 +18,9 @@ test:
 prob:
 	$(CC) -O3 $(STD) -o prob scripts/prob.cpp $(BOOST) $(INCLUDE) $(FMATH) $(GFLAGS) $(GSL)
 
+prob:
+	$(CC) -O3 $(STD) -o infer scripts/infer.cpp $(BOOST) $(INCLUDE) $(FMATH) $(GFLAGS) $(GSL)
+
 clean:
 	rm -f scan
 
