@@ -88,8 +88,6 @@ public:
     int _kappa_phi_interval;
     int _kappa_phi_start;
     int _current_iter;
-    int _sense_criteria_idx;
-    int _vocab_criteria_idx;
     
     SCANTrainer() {
         setlocale(LC_CTYPE, "ja_JP.UTF-8");
@@ -112,8 +110,6 @@ public:
         _kappa_phi_start = KAPPA_PHI_START;
         _kappa_phi_interval = KAPPA_PHI_INTERVAL;
         _current_iter = 0;
-        _sense_criteria_idx = 0;
-        _vocab_criteria_idx = 0;
     }
     ~SCANTrainer() {
         if (_logistic_Phi != NULL) {
@@ -205,23 +201,6 @@ public:
         // initialize parameters $\phi$ and $\psi$ with MLE
         _initialize_parameters();
         initialize_cache();
-        
-        _sense_criteria_idx = _scan->_n_k-1;
-        _vocab_criteria_idx = vocab_size-1;
-        if (_word_frequency[_vocab_criteria_idx] < _ignore_word_count) {
-            for (int v=vocab_size-1; v>=0; --v) {
-                if (_word_frequency[v] >= _ignore_word_count) {
-                    _vocab_criteria_idx = v;
-                    break;
-                }
-            }
-        }
-        for (int t=0; t<_scan->_n_t; ++t) {
-            _scan->_Phi[t][_sense_criteria_idx] = 0.0;
-            for (int k=0; k<_scan->_n_k; ++k) {
-                _scan->_Psi[t][k][_vocab_criteria_idx] = 0.0;
-            }
-        }
     }
     void _initialize_parameters() {
         for (int t=0; t<_scan->_n_t; ++t) {
@@ -363,9 +342,6 @@ public:
             }
         }
         for (int k=0; k<_scan->_n_k; ++k) {
-            if (k == _sense_criteria_idx) {
-                continue;
-            }
             double constants = 0;
             for (int i=0; i<_scan->_n_k; ++i) {
                 constants += exp(phi_t[i]) * (double)(i != k);
@@ -424,9 +400,6 @@ public:
                 }
             }
             for (int v=0; v<_scan->_vocab_size; ++v) {
-                if (v == _vocab_criteria_idx) {
-                    continue;
-                }
                 if (_word_frequency[v] < _ignore_word_count) {
                     continue;
                 }
@@ -572,8 +545,6 @@ public:
         oarchive << _burn_in_period;
         oarchive << _ignore_word_count;
         oarchive << _current_iter;
-        oarchive << _sense_criteria_idx;
-        oarchive << _vocab_criteria_idx;
     }
     bool load(string filename) {
         std::ifstream ifs(filename);
@@ -589,8 +560,6 @@ public:
             iarchive >> _burn_in_period;
             iarchive >> _ignore_word_count;
             iarchive >> _current_iter;
-            iarchive >> _sense_criteria_idx;
-            iarchive >> _vocab_criteria_idx;
             return true;
         }
         return false;
