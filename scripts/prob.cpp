@@ -33,7 +33,7 @@ int main() {
     string path = "./bin/transport.model";
     bool ret = trainer.load(path);
     // prepare model
-    trainer.prepare();
+    trainer.initialize_cache();
     trainer._update_logistic_Phi();
     trainer._update_logistic_Psi();
     // for each t, k, visualize word and sense distribution
