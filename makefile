@@ -22,6 +22,6 @@ infer:
 	$(CC) -O3 $(STD) -o infer scripts/infer.cpp $(BOOST) $(INCLUDE) $(FMATH) $(GFLAGS) $(GSL)
 
 clean:
-	rm -f scan
+	rm -f scan test prob infer
 
 .PHONY: clean
