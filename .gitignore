@@ -6,7 +6,9 @@ bin/
 scan
 test
 # work files
+scripts/fig/
 .work/
 .idea/
 out*
 *.log
+*.pickle
