@@ -15,6 +15,9 @@ scan:
 test:
 	$(CC) -O3 $(STD) -o test train.cpp $(BOOST) $(INCLUDE) $(FMATH) $(GFLAGS) $(GSL)
 
+prob:
+	$(CC) -O3 $(STD) -o prob scripts/prob.cpp $(BOOST) $(INCLUDE) $(FMATH) $(GFLAGS) $(GSL)
+
 clean:
 	rm -f scan
 
