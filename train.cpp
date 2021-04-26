@@ -19,7 +19,6 @@ DEFINE_int32(num_iteration, 1000, "number of iteration");
 DEFINE_int32(burn_in_period, 500, "burn in period");
 DEFINE_int32(ignore_word_count, 3, "threshold of low-frequency words");
 DEFINE_string(data_path, "./data/transport/", "path to dataset for training");
-DEFINE_string(validation_data_path, "./data/transport/", "path to dataset for validation");
 DEFINE_string(save_path, "./bin/scan.model", "path to model for archive");
 DEFINE_string(load_path, "./bin/scan.model", "path to model for loading");
 DEFINE_bool(from_archive, false, "load archive or not");
