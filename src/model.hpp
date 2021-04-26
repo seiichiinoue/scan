@@ -151,10 +151,10 @@ public:
             _dataset.push_back(vector<size_t>());
             vector<wstring> words;
             split_word_by(sentence, L' ', words);
-            add_document(words, doc_id);
+            _add_document(words, doc_id);
         }
     }
-    void add_document(vector<wstring> &words, int doc_id) {
+    void _add_document(vector<wstring> &words, int doc_id) {
         if (words.size() == 0) return;
         vector<size_t> &doc = _dataset[doc_id];
         for (auto word : words) {
@@ -170,28 +170,6 @@ public:
         wstring time;
         while (getline(ifs, time) && !ifs.eof()) {
             _times.push_back(stoi(time));
-        }
-    }
-    void initialize_cache() {
-        _logistic_Phi = new double*[_scan->_n_t];
-        _logistic_Psi = new double**[_scan->_n_t];
-        _probs = new double[_scan->_n_k];
-        _prior_mean_phi = new double[_scan->_n_k];
-        _prior_mean_psi = new double[_scan->_vocab_size];
-
-        for (int t=0; t<_scan->_n_t; ++t) {
-            _logistic_Phi[t] = new double[_scan->_n_k];
-            _logistic_transformation(t, _logistic_Phi[t]);
-        }
-        for (int t=0; t<_scan->_n_t; ++t) {
-            _logistic_Psi[t] = new double*[_scan->_n_k];
-            for (int k=0; k<_scan->_n_k; ++k) {
-                _logistic_Psi[t][k] = new double[_scan->_vocab_size];
-                _logistic_transformation(t, k, _logistic_Psi[t][k]);
-            }
-        }
-        for (int k=0; k<_scan->_n_k; ++k) {
-            _probs[k] = 0.0;
         }
     }
     void _initialize_parameters() {
@@ -222,6 +200,28 @@ public:
                     _scan->_Psi[t][k][v] = ((double)n_k_v + 0.01) / ((double)sum_n_k_v + (_scan->_vocab_size * 0.01));
                 }
             }
+        }
+    }
+    void initialize_cache() {
+        _logistic_Phi = new double*[_scan->_n_t];
+        _logistic_Psi = new double**[_scan->_n_t];
+        _probs = new double[_scan->_n_k];
+        _prior_mean_phi = new double[_scan->_n_k];
+        _prior_mean_psi = new double[_scan->_vocab_size];
+
+        for (int t=0; t<_scan->_n_t; ++t) {
+            _logistic_Phi[t] = new double[_scan->_n_k];
+            _logistic_transformation(t, _logistic_Phi[t]);
+        }
+        for (int t=0; t<_scan->_n_t; ++t) {
+            _logistic_Psi[t] = new double*[_scan->_n_k];
+            for (int k=0; k<_scan->_n_k; ++k) {
+                _logistic_Psi[t][k] = new double[_scan->_vocab_size];
+                _logistic_transformation(t, k, _logistic_Psi[t][k]);
+            }
+        }
+        for (int k=0; k<_scan->_n_k; ++k) {
+            _probs[k] = 0.0;
         }
     }
     void prepare() {
