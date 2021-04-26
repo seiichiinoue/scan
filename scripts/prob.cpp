@@ -27,11 +27,14 @@ std::vector<double> sense_probability(SCANTrainer &trainer, int t) {
     return ps;
 }
 
-int main() {
+DEFINE_string(model_path, "./bin/transport.model", "path to model archive");
+
+int main(int argc, char *argv[]) {
+    google::InitGoogleLogging(*argv);
+    google::ParseCommandLineFlags(&argc, &argv, true);
     SCANTrainer trainer;
     // load archive
-    string path = "./bin/transport.model";
-    bool ret = trainer.load(path);
+    bool ret = trainer.load(FLAGS_model_path);
     // prepare model
     trainer.initialize_cache();
     trainer._update_logistic_Phi();

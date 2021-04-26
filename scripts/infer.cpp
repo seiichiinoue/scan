@@ -80,16 +80,19 @@ int get_sum_word_frequency(SCANTrainer &trainer, unordered_map<size_t, int> word
     return sum;
 }
 
-int main() {
+// path to documents of time-step T + 1
+DEFINE_string(data_path, "./data/transport/valid.txt", "path to dataset for inference");
+DEFINE_string(model_path, "./bin/transport.model", "path to model archive");
+
+int main(int argc, char *argv[]) {
+    google::InitGoogleLogging(*argv);
+    google::ParseCommandLineFlags(&argc, &argv, true);
     vector<vector<size_t>> dataset;
     unordered_map<size_t, int> word_frequency;
     SCANTrainer trainer;
-    string model_path = "./bin/transport.model";
-    // path to documents of time-step T + 1
-    string data_path = "./data/transport/valid.txt";
-    bool ret = trainer.load(model_path);
+    bool ret = trainer.load(FLAGS_model_path);
     trainer.initialize_cache();
-    load_documents(data_path, trainer, dataset, word_frequency);
+    load_documents(FLAGS_data_path, trainer, dataset, word_frequency);
     double log_pw = compute_log_likelihood(trainer, dataset);
     double ppl = exp(-log_pw / get_sum_word_frequency(trainer, word_frequency));
     cout << "log_likelihood: " << log_pw << " perplexity: " << ppl << endl;
