@@ -194,14 +194,6 @@ public:
             _probs[k] = 0.0;
         }
     }
-    void prepare() {
-        int vocab_size = _vocab->num_words();
-        int num_docs = _dataset.size();
-        _scan->initialize_cache(vocab_size, num_docs);
-        // initialize parameters $\phi$ and $\psi$ with MLE
-        _initialize_parameters();
-        initialize_cache();
-    }
     void _initialize_parameters() {
         for (int t=0; t<_scan->_n_t; ++t) {
             for (int k=0; k<_scan->_n_k; ++k) {
@@ -231,6 +223,15 @@ public:
                 }
             }
         }
+    }
+    void prepare() {
+        int vocab_size = _vocab->num_words();
+        int num_docs = _dataset.size();
+        _scan->initialize_cache(vocab_size, num_docs);
+        // initialize parameters $\phi$ and $\psi$ with MLE
+        _initialize_parameters();
+        // after initializing $\phi$ and $\psi$, initialize trainer's chache
+        initialize_cache();
     }
     void set_num_sense(int n_k) {
         _scan->_n_k = n_k;
