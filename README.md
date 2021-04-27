@@ -1,4 +1,4 @@
-# Implementation of A Bayesian Model of Diachronic Meaning Change
+# A Bayesian Model of Diachronic Meaning Change
 
 ## Environment
 
