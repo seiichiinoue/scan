@@ -451,6 +451,19 @@ public:
         return;
     }
     void sample_kappa() {
+        double a = _scan->_gamma_a + (double)(_scan->_n_k * _scan->_n_t) * 0.5;
+        double b = 0.0;
+        for (int k=0; k<_scan->_n_k; ++k) {
+            double mu_phi = 0.0;
+            for (int t=0; t<_scan->_n_t; ++t) {
+                mu_phi += _scan->_Phi[t][k];
+            }
+            mu_phi /= (double)_scan->_n_t;
+            for (int t=0; t<_scan->_n_t; ++t) {
+                b += pow(_scan->_Phi[t][k] - mu_phi, 2);
+            }
+        }
+        b = _scan->_gamma_b + (b / 2.0);
         _scan->_kappa_phi = sampler::gamma(_scan->_gamma_a, _scan->_gamma_b);
         return;
     }
