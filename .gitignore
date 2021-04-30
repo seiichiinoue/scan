@@ -8,6 +8,7 @@ test
 # work files
 scripts/fig/
 scripts/*.py
+*.sh
 .work/
 .idea/
 out*
