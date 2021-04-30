@@ -9,6 +9,9 @@
 #define GAMMA_A 7.0
 #define GAMMA_B 3.0
 #define CONTEXT_WINDOW_WIDTH 10
+#define START_YEAR 1810
+#define END_YEAR 2010
+#define YEAR_INTERVAL 20
 #define BURN_IN_PERIOD 500
 #define IGNORE_WORD_COUNT 3
 #define KAPPA_PHI_START 100

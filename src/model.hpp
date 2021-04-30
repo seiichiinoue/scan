@@ -83,6 +83,10 @@ public:
     double* _prior_mean_phi;
     double* _prior_mean_psi;
 
+    int _start_year;
+    int _end_year;
+    int _year_interval;
+
     int _burn_in_period;
     int _ignore_word_count;
     int _kappa_phi_interval;
@@ -104,6 +108,10 @@ public:
         _probs = NULL;
         _prior_mean_phi = NULL;
         _prior_mean_psi = NULL;
+
+        _start_year = START_YEAR;
+        _end_year = END_YEAR;
+        _year_interval = YEAR_INTERVAL;
 
         _burn_in_period = BURN_IN_PERIOD;
         _ignore_word_count = IGNORE_WORD_COUNT;
@@ -143,6 +151,10 @@ public:
         delete _vocab;
     }
     void load_documents(string filepath) {
+        unordered_map<int, int> year_to_id;
+        for (int y=_start_year; y<=_end_year; ++y) {
+            year_to_id[y] = (y - _start_year) / _year_interval;
+        }
         wifstream ifs(filepath.c_str());
         assert(ifs.fail() == false);
         wstring sentence;
@@ -151,7 +163,10 @@ public:
             _dataset.push_back(vector<size_t>());
             vector<wstring> words;
             split_word_by(sentence, L' ', words);
+            int time_id = year_to_id[stoi(words[0])];
+            words.erase(words.begin());
             _add_document(words, doc_id);
+            _times.push_back(time_id);
         }
     }
     void _add_document(vector<wstring> &words, int doc_id) {
@@ -162,14 +177,6 @@ public:
             size_t word_id = _vocab->add_string(word);
             doc.push_back(word_id);
             _word_frequency[word_id] += 1;
-        }
-    }
-    void load_time_labels(string filepath) {
-        wifstream ifs(filepath.c_str());
-        assert(ifs.fail() == false);
-        wstring time;
-        while (getline(ifs, time) && !ifs.eof()) {
-            _times.push_back(stoi(time));
         }
     }
     void _initialize_parameters() {
@@ -225,9 +232,10 @@ public:
         }
     }
     void prepare() {
+        int num_time = ((_end_year - _start_year) + (_year_interval - 1)) / _year_interval;
         int vocab_size = _vocab->num_words();
         int num_docs = _dataset.size();
-        _scan->initialize_cache(vocab_size, num_docs);
+        _scan->initialize_cache(num_time, vocab_size, num_docs);
         // initialize parameters $\phi$ and $\psi$ with MLE
         _initialize_parameters();
         // after initializing $\phi$ and $\psi$, initialize trainer's chache
@@ -235,9 +243,6 @@ public:
     }
     void set_num_sense(int n_k) {
         _scan->_n_k = n_k;
-    }
-    void set_num_time(int n_t) {
-        _scan->_n_t = n_t;
     }
     void set_kappa_phi(double kappa_phi) {
         _scan->_kappa_phi = kappa_phi;
@@ -253,6 +258,15 @@ public:
     }
     void set_context_window_width(int context_window_width) {
         _scan->_context_window_width = context_window_width;
+    }
+    void set_start_year(int start_year) {
+        _start_year = start_year;
+    }
+    void set_end_year(int end_year) {
+        _end_year = end_year;
+    }
+    void set_year_interval(int year_interval) {
+        _year_interval = year_interval;
     }
     void set_burn_in_period(int burn_in_period) {
         _burn_in_period = burn_in_period;
@@ -434,7 +448,6 @@ public:
                 lu = (lu - _prior_mean_psi[v]) / prior_sigma;
                 ru = (ru - _prior_mean_psi[v]) / prior_sigma;
                 // to suppress the probability of word that does not appear in documents given {time t, sense k}
-                if (cnt_else == 0) ru = 0.0;
                 assert(lu < ru);
                 double noise = sampler::truncated_normal(lu, ru);
                 double sampled = _prior_mean_psi[v] + noise * prior_sigma;
@@ -464,7 +477,7 @@ public:
             }
         }
         b = _scan->_gamma_b + (b / 2.0);
-        _scan->_kappa_phi = sampler::gamma(_scan->_gamma_a, _scan->_gamma_b);
+        _scan->_kappa_phi = sampler::gamma(a, b);
         return;
     }
     bool _word_in_document(size_t word_id, int doc_id) {
@@ -556,6 +569,9 @@ public:
         oarchive << _word_frequency;
         oarchive << _dataset;
         oarchive << _times;
+        oarchive << _start_year;
+        oarchive << _end_year;
+        oarchive << _year_interval;
         oarchive << _burn_in_period;
         oarchive << _ignore_word_count;
         oarchive << _current_iter;
@@ -571,6 +587,9 @@ public:
             iarchive >> _word_frequency;
             iarchive >> _dataset;
             iarchive >> _times;
+            iarchive >> _start_year;
+            iarchive >> _end_year;
+            iarchive >> _year_interval;
             iarchive >> _burn_in_period;
             iarchive >> _ignore_word_count;
             iarchive >> _current_iter;
