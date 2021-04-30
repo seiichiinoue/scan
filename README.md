@@ -11,16 +11,14 @@ $ docker run -it -v [LOCAL_PATH]:[CONTAINER_PATH] boost
 
 ## Data
 
-`documents.txt`: each line correspond to word-specific snippet
+`corpus.txt`: each line correspond to word-specific snippet
 
 ```
-d_0_context_{-I} d_0_context_{-I+1} ... d_0_context_{-1} d_0_context_{+1} d_0_context_{+2} ... d_0_context_{+I}
-d_1_context_{-I} d_1_context_{-I+1} ... d_1_context_{-1} d_1_context_{+1} d_1_context_{+2} ... d_1_context_{+I}
+year_0 d_0_context_{-I} d_0_context_{-I+1} ... d_0_context_{-1} d_0_context_{+1} d_0_context_{+2} ... d_0_context_{+I}
+year_1 d_1_context_{-I} d_1_context_{-I+1} ... d_1_context_{-1} d_1_context_{+1} d_1_context_{+2} ... d_1_context_{+I}
 ...
-d_N_context_{-I} d_N_context_{-I+1} ... d_N_context_{-1} d_N_context_{+1} d_N_context_{+2} ... d_N_context_{+I}
+year_N d_N_context_{-I} d_N_context_{-I+1} ... d_N_context_{-1} d_N_context_{+1} d_N_context_{+2} ... d_N_context_{+I}
 ```
-
-`time_labels.txt`: each line correspond to time label of corresponding snippet.
 
 ## Run
 
