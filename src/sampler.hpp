@@ -59,7 +59,7 @@ namespace scan {
             }
             return _inverse_normal_cdf(u);
         }
-        int multinomial(size_t k, double* p) {
+        int multinomial_gsl(size_t k, double* p) {
             // settings for gsl random number generator
             int s = chrono::system_clock::now().time_since_epoch().count();
             const gsl_rng_type* T;
@@ -78,6 +78,23 @@ namespace scan {
             }
             gsl_rng_free(_r);
             return ret;
+        }
+        int multinomial(size_t k, double* p) {
+            // random sampling from multinomial
+            // https://github.com/ampl/gsl/blob/master/randist/multinomial.c#L44-L78
+            double norm = 0.0, sum_p = 0.0;
+            for (int i=0; i<k; ++i) {
+                norm += p[i];
+            }
+            for (int i=0; i<k; ++i) {
+                if (p[i] > 0.0) {
+                    binomial_distribution<int> distribution(1, p[i] / (norm - sum_p));
+                    int ret = distribution(mt);
+                    if (ret) return i;
+                }
+                sum_p += p[i];
+            }
+            return k - 1;
         }
     }
 }
