@@ -81,7 +81,7 @@ int get_sum_word_frequency(SCANTrainer &trainer, unordered_map<size_t, int> word
 }
 
 // path to documents of time-step T + 1
-DEFINE_string(data_path, "./data/transport/valid.txt", "path to dataset for inference");
+DEFINE_string(data_path, "./data/transport/test.txt", "path to dataset for inference");
 DEFINE_string(model_path, "./bin/transport.model", "path to model archive");
 
 int main(int argc, char *argv[]) {
