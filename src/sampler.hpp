@@ -61,12 +61,13 @@ namespace scan {
         }
         int multinomial(size_t k, double* p) {
             // settings for gsl random number generator
+            int s = chrono::system_clock::now().time_since_epoch().count();
             const gsl_rng_type* T;
             gsl_rng* _r;
             gsl_rng_env_setup();
             T = gsl_rng_default;
             _r = gsl_rng_alloc(T);
-            gsl_rng_set(_r, seed);
+            gsl_rng_set(_r, s);
 
             unsigned int* n = new unsigned int[k];
             const double* p_const = const_cast<const double*>(p); 
