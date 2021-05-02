@@ -101,6 +101,7 @@ public:
         locale ctype_default(locale::classic(), default_loc, locale::ctype);
         wcout.imbue(ctype_default);
         wcin.imbue(ctype_default);
+
         _scan = new SCAN();
         _vocab = new Vocab();
         _logistic_Phi = NULL;
