@@ -367,11 +367,12 @@ public:
             cnt_t[_scan->_Z[n]]++;
             sum_cnt_t++;
         }
+        double denom = 0.0;
         for (int k=0; k<_scan->_n_k; ++k) {
-            double constants = 0;
-            for (int i=0; i<_scan->_n_k; ++i) {
-                constants += exp(phi_t[i]) * (double)(i != k);
-            }
+            denom += exp(phi_t[k]);
+        }
+        for (int k=0; k<_scan->_n_k; ++k) {
+            double constants = denom - exp(phi_t[k]);
             int cnt = cnt_t[k];
             int cnt_else = sum_cnt_t - cnt_t[k];
             double lu, ru;
@@ -434,17 +435,18 @@ public:
                     sum_cnt_t_k++;
                 }
             }
+            double denom = 0.0;
             for (int v=0; v<_scan->_vocab_size; ++v) {
                 if (_word_frequency[v] < _ignore_word_count) {
                     continue;
                 }
-                double constants = 0;
-                for (int i=0; i<_scan->_vocab_size; ++i) {
-                    if (_word_frequency[i] < _ignore_word_count) {
-                        continue;
-                    }
-                    constants += exp(psi_t_k[i]) * (double)(i != v);
+                denom += exp(psi_t_k[v]);
+            }
+            for (int v=0; v<_scan->_vocab_size; ++v) {
+                if (_word_frequency[v] < _ignore_word_count) {
+                    continue;
                 }
+                double constants = denom - exp(psi_t_k[v]);
                 int cnt = cnt_t_k[v];
                 int cnt_else = sum_cnt_t_k - cnt_t_k[v];
                 double lu, ru;
