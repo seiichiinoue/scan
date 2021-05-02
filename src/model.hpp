@@ -181,30 +181,34 @@ public:
     }
     void _initialize_parameters() {
         for (int t=0; t<_scan->_n_t; ++t) {
+            vector<int> cnt_t(_scan->_n_k, 0);
+            int sum_cnt_t = 0;
+            for (int n=0; n<_scan->_num_docs; ++n) {
+                if (_times[n] != t) continue;
+                cnt_t[_scan->_Z[n]]++;
+                sum_cnt_t++;
+            }
+            // initialize Phi with MLE
             for (int k=0; k<_scan->_n_k; ++k) {
-                // initialize Phi with MLE
-                int n_k = 0, sum_n_k = 0;
+                _scan->_Phi[t][k] = ((double)cnt_t[k] + 0.01) / ((double)sum_cnt_t + (_scan->_n_k * 0.01));
+            }
+            for (int k=0; k<_scan->_n_k; ++k) {
+                vector<int> cnt_t_k(_scan->_vocab_size, 0);
+                int sum_cnt_t_k = 0;
                 for (int n=0; n<_scan->_num_docs; ++n) {
-                    if (_times[n] != t) continue;
-                    if (_scan->_Z[n] == k) n_k++;
-                    else sum_n_k++;
-                }
-                _scan->_Phi[t][k] = ((double)n_k + 0.01) / ((double)sum_n_k + (_scan->_n_k * 0.01));
-                for (int v=0; v<_scan->_vocab_size; ++v) {
-                    // initialize Psi with MLE
-                    int n_k_v = 0, sum_n_k_v = 0;
-                    for (int n=0; n<_scan->_num_docs; ++n) {
-                        if (_times[n] != t || _scan->_Z[n] != k) continue;
-                        for (int i=0; i<_scan->_context_window_width; ++i) {
-                            size_t word_id = _dataset[n][i];
-                            if (_word_frequency[word_id] < _ignore_word_count) {
-                                continue;
-                            }
-                            if (word_id == v) n_k_v++;
-                            else sum_n_k_v++;
+                    if (_times[n] != t || _scan->_Z[n] != k) continue;
+                    for (int i=0; i<_scan->_context_window_width; ++i) {
+                        size_t word_id = _dataset[n][i];
+                        if (_word_frequency[word_id] < _ignore_word_count) {
+                            continue;
                         }
+                        cnt_t_k[word_id]++;
+                        sum_cnt_t_k++;
                     }
-                    _scan->_Psi[t][k][v] = ((double)n_k_v + 0.01) / ((double)sum_n_k_v + (_scan->_vocab_size * 0.01));
+                }
+                // initialize Psi with MLE
+                for (int v=0; v<_scan->_vocab_size; ++v) {
+                    _scan->_Psi[t][k][v] = ((double)cnt_t_k[v] + 0.01) / ((double)sum_cnt_t_k + (_scan->_vocab_size * 0.01));
                 }
             }
         }
@@ -356,17 +360,20 @@ public:
                 prior_sigma = sqrt(1.0 / (2.0 * _scan->_kappa_phi));
             }
         }
+        vector<int> cnt_t(_scan->_n_k, 0);
+        int sum_cnt_t = 0;
+        for (int n=0; n<_scan->_num_docs; ++n) {
+            if (_times[n] != t) continue;
+            cnt_t[_scan->_Z[n]]++;
+            sum_cnt_t++;
+        }
         for (int k=0; k<_scan->_n_k; ++k) {
             double constants = 0;
             for (int i=0; i<_scan->_n_k; ++i) {
                 constants += exp(phi_t[i]) * (double)(i != k);
             }
-            int cnt = 0, cnt_else = 0;
-            for (int n=0; n<_scan->_num_docs; ++n) {
-                if (_times[n] != t) continue;
-                if (_scan->_Z[n] == k) cnt++;
-                else cnt_else++;
-            }
+            int cnt = cnt_t[k];
+            int cnt_else = sum_cnt_t - cnt_t[k];
             double lu, ru;
             // random sampling of maximum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(0, logistic_phi_t[k])$ 
             lu = std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt) * logistic_phi_t[k];
@@ -414,6 +421,19 @@ public:
                     prior_sigma = sqrt(1.0 / (2.0 * _scan->_kappa_psi));
                 }
             }
+            vector<int> cnt_t_k(_scan->_vocab_size, 0);
+            int sum_cnt_t_k = 0;
+            for (int n=0; n<_scan->_num_docs; ++n) {
+                if (_times[n] != t || _scan->_Z[n] != k) continue;
+                for (int i=0; i<_scan->_context_window_width; ++i) {
+                    size_t word_id = _dataset[n][i];
+                    if (_word_frequency[word_id] < _ignore_word_count) {
+                        continue;
+                    }
+                    cnt_t_k[word_id]++;
+                    sum_cnt_t_k++;
+                }
+            }
             for (int v=0; v<_scan->_vocab_size; ++v) {
                 if (_word_frequency[v] < _ignore_word_count) {
                     continue;
@@ -425,18 +445,8 @@ public:
                     }
                     constants += exp(psi_t_k[i]) * (double)(i != v);
                 }
-                int cnt = 0, cnt_else = 0;
-                for (int n=0; n<_scan->_num_docs; ++n) {
-                    if (_times[n] != t || _scan->_Z[n] != k) continue;
-                    for (int i=0; i<_scan->_context_window_width; ++i) {
-                        size_t word_id = _dataset[n][i];
-                        if (_word_frequency[word_id] < _ignore_word_count) {
-                            continue;
-                        }
-                        if (word_id == v) cnt++;
-                        else cnt_else++;
-                    }
-                }
+                int cnt = cnt_t_k[v];
+                int cnt_else = sum_cnt_t_k - cnt_t_k[v];
                 double lu, ru;
                 // random sampling of maximum value in $log(u_n / (1 - u_n))$, where $u_n \sim U(0, logistic_psi_t_k[v])$ 
                 lu = std::pow(sampler::uniform(0, 1), 1.0 / (double)cnt) * logistic_psi_t_k[v];
@@ -542,7 +552,7 @@ public:
         }
         return log_pw;
     }
-    void train(int iter=1000, string save_path ="./bin/scan.bin") {
+    void train(int iter=1000, string save_path ="./bin/scan.model") {
         for (int i=0; i<iter; ++i) {
             ++_current_iter;
             for (int t=0; t<_scan->_n_t; ++t) {
