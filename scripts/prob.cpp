@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
         wcout << "time:" << t << endl;
         std::vector<double> ps = sense_probability(trainer, t);
         for (int k=0; k<trainer._scan->_n_k; ++k) {
-            wcout << "sense:" << k << "(" << ps[k] << ") ";
+            wcout << ps[k] << " ";
             std::vector<std::pair<wstring, double>> pw = word_ranking(trainer, t, k);
             for (int i=0; i<10; ++i) {
                 wcout << pw[i].first << " ";
