@@ -5,13 +5,14 @@ data/
 bin/
 scan
 test
+infer
+prob
 # work files
 scripts/fig/
 scripts/*.py
 log/
-*.sh
 .work/
 .idea/
-out*
-*.log
+*.sh
 *.pickle
+out*
