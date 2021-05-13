@@ -460,7 +460,6 @@ public:
                 // scaling probabilistic variable to standard normal
                 lu = (lu - _prior_mean_psi[v]) / prior_sigma;
                 ru = (ru - _prior_mean_psi[v]) / prior_sigma;
-                // to suppress the probability of word that does not appear in documents given {time t, sense k}
                 assert(lu < ru);
                 double noise = sampler::truncated_normal(lu, ru);
                 double sampled = _prior_mean_psi[v] + noise * prior_sigma;
