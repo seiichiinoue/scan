@@ -10,6 +10,7 @@ prob
 # work files
 scripts/fig/
 scripts/*.py
+scripts/*.ipynb
 log/
 .work/
 .idea/
