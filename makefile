@@ -18,6 +18,9 @@ test:
 prob:
 	$(CC) -O3 $(STD) -o prob scripts/prob.cpp $(BOOST) $(INCLUDE) $(FMATH) $(GFLAGS)
 
+eval:
+	$(CC) -O3 $(STD) -o eval scripts/eval.cpp $(BOOST) $(INCLUDE) $(FMATH) $(GFLAGS)
+
 infer:
 	$(CC) -O3 $(STD) -o infer scripts/infer.cpp $(BOOST) $(INCLUDE) $(FMATH) $(GFLAGS)
 
