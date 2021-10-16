@@ -537,19 +537,25 @@ public:
         }
     }
     double compute_log_likelihood() {
+        _update_logistic_Phi();
         _update_logistic_Psi();
         double log_pw = 0.0;
         for (int t=0; t<_scan->_n_t; ++t) {
             for (int n=0; n<_scan->_num_docs; ++n) {
+                double log_pw_d = 0.0;
                 if (_times[n] != t) continue;
-                int assigned_sense = _scan->_Z[n];
-                for (int i=0; i<_dataset[n].size(); ++i) {
-                    size_t word_id = _dataset[n][i];
-                    if (_word_frequency[word_id] < _ignore_word_count) {
-                        continue;
+                for (int k=0; k<_scan->_n_k; ++k) {
+                    double log_pw_dk = log(_logistic_Phi[t][k]);
+                    for (int i=0; i<_dataset[n].size(); ++i) {
+                        size_t word_id = _dataset[n][i];
+                        if (_word_frequency[word_id] < _ignore_word_count) {
+                            continue;
+                        }
+                        log_pw_dk += log(_logistic_Psi[t][k][word_id]);
                     }
-                    log_pw += log(_logistic_Psi[t][assigned_sense][word_id]);
+                    log_pw_d += exp(log_pw_dk);
                 }
+                log_pw += log(log_pw_d);
             }
         }
         return log_pw;
