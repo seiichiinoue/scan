@@ -16,6 +16,6 @@ scripts/*.ipynb
 log/
 .work/
 .idea/
-*.sh
+run.sh
 *.pickle
 out*
