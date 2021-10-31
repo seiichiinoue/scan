@@ -575,7 +575,9 @@ public:
             double ppl = exp((-1 * log_pw) / get_sum_word_frequency());
             cout << "iter: " << _current_iter 
                 << " log_likelihood: " << log_pw
-                << " perplexity: " << ppl << endl;
+                << " perplexity: " << ppl 
+                << " kappa_phi: " << _scan->_kappa_phi
+                << endl;
             save(save_path);
         }
     }
