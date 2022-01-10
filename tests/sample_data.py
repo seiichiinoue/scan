@@ -150,12 +150,7 @@ def plot_curve(t, senses):
     plt.savefig(f'tests/fig/gp_sense{str(len(senses))}.png')
 
 def plot_proportion(probs):
-    plt.rc('legend', fontsize=13)
-    # probs = np.array(probs)[:, [2, 1, 0]]
-    # probs = np.array(probs)[:, [1, 2, 4, 3, 0]]
     fig, ax = plt.subplots(figsize=(10, 5))
-    plt.xticks(fontsize=13)
-    plt.yticks(fontsize=13)
     legend = []
     for i in range(len(probs[0])):
         ax.bar([str(j) for j in range(len(probs))], probs[:, i], bottom=probs[:, :i].sum(axis=1))
