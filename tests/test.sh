@@ -11,10 +11,11 @@ WORD_PRIOR_TYPE="dirichlet"
 
 # sb-scan
 NUM_ITERATION=2000
+MIN_WORD_COUNT=3
 
 DAY=$(date "+%m%d")
 INPUT_DATA=./tests/sampled/pseudo_${WORD_PRIOR_TYPE}_sense${NUM_SENSES}_vocab${VOCAB_SIZE_PER_SENSE}_common${RATIO_COMMON_VOCAB}_window${CONTEXT_WINDOW_SIZE}_sample${NUM_SAMPLE}.txt
-SUFFIX=pseudo_${WORD_PRIOR_TYPE}_sense${NUM_SENSES}_sample${NUM_SAMPLE}_vocab${VOCAB_SIZE_PER_SENSE}_kappa_psi${KAPPA_PSI}_top_n${TOP_N_WORD}_${DAY}
+SUFFIX=pseudo_${WORD_PRIOR_TYPE}_sense${NUM_SENSES}_sample${NUM_SAMPLE}_vocab${VOCAB_SIZE_PER_SENSE}_${DAY}
 BINARY_PATH=./bin/${SUFFIX}.model
 LOG_PATH=./log/out_${SUFFIX}
 
@@ -31,8 +32,8 @@ python3 tests/sample_data.py --num-times $NUM_TIMES \
 # execute test
 ./scan -data_path=$INPUT_DATA \
        -save_path=$BINARY_PATH \
-       -num_sense=$NUM_SENSES \
        -context_window_width=$CONTEXT_WINDOW_SIZE \
+       -min_word_count=$MIN_WORD_COUNT \
        -start_year=0 \
        -end_year=$NUM_TIMES \
        -year_interval=1 \
