@@ -9,7 +9,7 @@ DEFINE_double(gamma_b, 3.0, "hyperparameter of gamma prior");
 DEFINE_int32(start_year, 1700, "start year in the corpus");
 DEFINE_int32(end_year, 2020, "end year in the corpus");
 DEFINE_int32(year_interval, 20, "year interval");
-DEFINE_int32(context_window_width, 10, "context window width");
+DEFINE_int32(context_window_width, 5, "context window width");
 DEFINE_int32(num_iteration, 1000, "number of iteration");
 DEFINE_int32(burn_in_period, 500, "burn in period");
 DEFINE_int32(min_word_count, 3, "threshold of low-frequency words");
@@ -48,9 +48,7 @@ int main(int argc, char *argv[]) {
     cout << "{num_sense: " << trainer._scan->_n_k << ", num_time: " << trainer._scan->_n_t
         << ", kappa_phi: " << trainer._scan->_kappa_phi << ", kappa_psi: " << trainer._scan->_kappa_psi
         << ", gamma_a: " << trainer._scan->_gamma_a << ", gamma_b: " << trainer._scan->_gamma_b
-        << ", context_window_width: " << trainer._scan->_context_window_width
         << ", num_iteration: " << FLAGS_num_iteration
-        << ", burn_in_period: " << FLAGS_burn_in_period
         << ", min_word_count: " << FLAGS_min_word_count << "}" << endl;
     cout << "num of docs: " << trainer._scan->_num_docs << endl;
     cout << "sum of word freq: " << trainer.get_sum_word_frequency() << endl;
