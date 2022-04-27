@@ -20,4 +20,5 @@ scripts/*.sh
 *.pickle
 out*
 # allow
+!tools/create_pseudo_data.py
 !scripts/run_test.sh
