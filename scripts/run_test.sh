@@ -14,13 +14,13 @@ NUM_ITERATION=2000
 MIN_WORD_COUNT=3
 
 DAY=$(date "+%m%d")
-INPUT_DATA=./tests/sampled/pseudo_${WORD_PRIOR_TYPE}_sense${NUM_SENSES}_vocab${VOCAB_SIZE_PER_SENSE}_common${RATIO_COMMON_VOCAB}_window${CONTEXT_WINDOW_SIZE}_sample${NUM_SAMPLE}.txt
+INPUT_DATA=./data/pseudo/pseudo_${WORD_PRIOR_TYPE}_sense${NUM_SENSES}_vocab${VOCAB_SIZE_PER_SENSE}_common${RATIO_COMMON_VOCAB}_window${CONTEXT_WINDOW_SIZE}_sample${NUM_SAMPLE}.txt
 SUFFIX=pseudo_${WORD_PRIOR_TYPE}_sense${NUM_SENSES}_sample${NUM_SAMPLE}_vocab${VOCAB_SIZE_PER_SENSE}_${DAY}
-BINARY_PATH=./bin/${SUFFIX}.model
-LOG_PATH=./log/out_${SUFFIX}
+BINARY_PATH=./results/bin/${SUFFIX}.model
+LOG_PATH=./results/log/out_${SUFFIX}
 
 # generate pseudo data
-python3 tests/sample_data.py --num-times $NUM_TIMES \
+python3 tools/create_pseudo_data.py --num-times $NUM_TIMES \
                              --num-senses $NUM_SENSES \
                              --context-window-size $CONTEXT_WINDOW_SIZE \
                              --vocab-size-per-sense $VOCAB_SIZE_PER_SENSE \
@@ -40,4 +40,4 @@ python3 tests/sample_data.py --num-times $NUM_TIMES \
        -num_iteration=$NUM_ITERATION > $LOG_PATH
 
 # output probabilities
-./prob -model_path=$BINARY_PATH -use_npmi=false > scripts/out/${SUFFIX}
+./prob -model_path=$BINARY_PATH -use_npmi=false > results/out/${SUFFIX}
