@@ -13,9 +13,11 @@ eval
 utils/*.py
 tools/*.py
 results/
-scripts/
+scripts/*.sh
 .work/
 .idea/
 .backup/
 *.pickle
 out*
+# allow
+!scripts/run_test.sh
