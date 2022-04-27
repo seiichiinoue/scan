@@ -10,12 +10,12 @@ infer
 prob
 eval
 # work files
-scripts/fig/
-scripts/*.py
-scripts/*.ipynb
-log/
+utils/*.py
+tools/*.py
+results/
+scripts/
 .work/
 .idea/
-run.sh
+.backup/
 *.pickle
 out*
