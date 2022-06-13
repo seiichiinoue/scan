@@ -10,7 +10,7 @@ infer
 prob
 eval
 # work files
-utils/*.py
+utils/
 tools/*.py
 results/
 scripts/*.sh
