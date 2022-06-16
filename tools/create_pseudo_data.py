@@ -107,6 +107,13 @@ class Sampler:
                 probs = [0.0 for _ in range(cnt_pre)] \
                     + [1.0 / self.vocab_size_per_sense for _ in range(self.vocab_size_per_sense)] \
                     + [0.0 for _ in range(cnt_post)]
+            elif word_prior_type == "zipf":
+                s = 1.0
+                powerlaw_vars = [1.0 / (i ** s) for i in range(1, self.vocab_size_per_sense + 1)]
+                denom = sum(powerlaw_vars)
+                probs = [0.0 for _ in range(cnt_pre)] \
+                    + [var / denom for var in powerlaw_vars] \
+                    + [0.0 for _ in range(cnt_post)]
             self.word_probs.append(probs)
         self.id_to_token = []
         num_common_vocab = int(self.vocab_size_per_sense * self.ratio_common_vocab)
@@ -125,7 +132,7 @@ class Sampler:
         return np.random.multinomial(1, self.probs[t])
 
     def draw_words(self, n_sample: int = 100, imbalance: bool = False):
-        assert path.exists(OUTPUT_PREFIX)
+        assert not path.exists(OUTPUT_PATH)
         with open(OUTPUT_PATH, "w") as f:
             for t in range(self.num_times):
                 # reduce the number of old sample
@@ -142,12 +149,17 @@ class Sampler:
                         snippet.extend([self.id_to_token[word_id] for _ in range(n_word)])
                     f.write("{} {}\n".format(str(t), " ".join(snippet)))
 
+plt.rcParams['font.family'] = 'DejaVu Sans'
+plt.rcParams["font.size"] = 13
 
 def plot_curve(t, senses):
     x = np.linspace(0, t-1, t)
     fig = plt.figure(figsize=(10, 5))
-    for sense in senses:
+    legend = []
+    for i, sense in enumerate(senses):
         plt.plot(x, sense.priors)
+        legend.append(f"sense{str(i)}")
+    plt.legend(legend)
     plt.savefig(f'results/fig/gp_sense{str(len(senses))}.png')
 
 def plot_proportion(probs):
@@ -155,8 +167,8 @@ def plot_proportion(probs):
     legend = []
     for i in range(len(probs[0])):
         ax.bar([str(j) for j in range(len(probs))], probs[:, i], bottom=probs[:, :i].sum(axis=1))
-        legend.append(f"sense_{str(i)}")
-    plt.legend(legend, loc='upper left', bbox_to_anchor=(0, -0.1), ncol=5)
+        legend.append(f"sense{str(i)}")
+    plt.legend(legend, loc='upper left', bbox_to_anchor=(0, -0.1), ncol=4)
     fig.tight_layout()
     plt.savefig(f'results/fig/gp_prob_sense{str(len(probs[0]))}.png')
 
