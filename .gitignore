@@ -1,6 +1,5 @@
 # dataset
-COHA/
-CLMET/
+corpora/
 data/
 # binary
 bin/
