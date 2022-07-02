@@ -18,6 +18,7 @@ scripts/*.sh
 .backup/
 *.pickle
 out*
+*__pycache__
 # allow
 !tools/create_pseudo_data.py
 !scripts/run_test.sh
